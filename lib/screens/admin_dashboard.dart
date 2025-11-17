@@ -279,178 +279,250 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          'Admin Dashboard',
-          style: GoogleFonts.poppins(fontWeight: FontWeight.bold),
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              colorScheme.surface,
+              colorScheme.surfaceVariant.withOpacity(0.6),
+            ],
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+          ),
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _loadReports,
-            tooltip: 'Refresh',
-          ),
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: _logout,
-            tooltip: 'Logout',
-          ),
-        ],
-      ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _filteredReports.isEmpty
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.inbox,
-                        size: 64,
-                        color: Colors.grey[400],
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        'No reports found',
-                        style: GoogleFonts.poppins(
-                          fontSize: 18,
-                          color: Colors.grey[600],
-                        ),
-                      ),
-                    ],
-                  ),
-                )
-              : RefreshIndicator(
-                  onRefresh: _loadReports,
-                  child: ListView(
-                    padding: const EdgeInsets.all(16.0),
-                    children: [
-                      Card(
-                        margin: const EdgeInsets.only(bottom: 16),
-                        child: Padding(
-                          padding: const EdgeInsets.all(16.0),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              Text(
-                                'Filters',
-                                style: GoogleFonts.poppins(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              const SizedBox(height: 12),
-                              DropdownButtonFormField<String>(
-                                value: _selectedWorker,
-                                decoration: const InputDecoration(
-                                  labelText: 'Worker',
-                                  border: OutlineInputBorder(),
-                                ),
-                                items: _workerOptions
-                                    .map((worker) => DropdownMenuItem(
-                                          value: worker,
-                                          child: Text(worker),
-                                        ))
-                                    .toList(),
-                                onChanged: (value) {
-                                  if (value == null) return;
-                                  setState(() {
-                                    _selectedWorker = value;
-                                  });
-                                  _applyFilters();
-                                },
-                              ),
-                              const SizedBox(height: 12),
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: OutlinedButton.icon(
-                                      onPressed: _selectDate,
-                                      icon: const Icon(Icons.calendar_today),
-                                      label: Text(
-                                        _selectedDate == null
-                                            ? 'Select Date'
-                                            : _formatDate(_selectedDate!
-                                                .toIso8601String()),
-                                      ),
-                                    ),
-                                  ),
-                                  if (_selectedDate != null)
-                                    IconButton(
-                                      icon: const Icon(Icons.clear),
-                                      onPressed: () {
-                                        setState(() {
-                                          _selectedDate = null;
-                                        });
-                                        _applyFilters();
-                                      },
-                                    ),
-                                ],
-                              ),
-                              const SizedBox(height: 12),
-                              Align(
-                                alignment: Alignment.centerRight,
-                                child: TextButton.icon(
-                                  onPressed: _clearFilters,
-                                  icon: const Icon(Icons.refresh),
-                                  label: const Text('Clear Filters'),
-                                ),
-                              ),
-                            ],
+        child: SafeArea(
+          child: Column(
+            children: [
+              Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                child: Row(
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Admin Dashboard',
+                          style: GoogleFonts.poppins(
+                            fontSize: 22,
+                            fontWeight: FontWeight.w700,
                           ),
                         ),
-                      ),
-                      ..._filteredReports.map((report) {
-                        final status = _getStatus(report);
-                        final date = _formatDate(report['date']?.toString());
-                        final workerName =
-                            report['workerName']?.toString() ?? 'Unknown';
-                        return Card(
-                          margin: const EdgeInsets.only(bottom: 12),
-                          child: ListTile(
-                            onTap: () => _showReportDetails(report),
-                            contentPadding: const EdgeInsets.all(16),
-                            title: Text(
-                              workerName,
-                              style: GoogleFonts.poppins(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                              ),
-                            ),
-                            subtitle: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                        Text(
+                          'Monitor daily submissions',
+                          style: GoogleFonts.poppins(
+                            fontSize: 13,
+                            color: colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const Spacer(),
+                    IconButton(
+                      icon: const Icon(Icons.refresh),
+                      onPressed: _loadReports,
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.logout),
+                      onPressed: _logout,
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: _isLoading
+                    ? const Center(child: CircularProgressIndicator())
+                    : _filteredReports.isEmpty
+                        ? _buildEmptyState(context)
+                        : RefreshIndicator(
+                            onRefresh: _loadReports,
+                            child: ListView(
+                              padding:
+                                  const EdgeInsets.fromLTRB(20, 0, 20, 24),
                               children: [
-                                const SizedBox(height: 8),
-                                Text(
-                                  'Date: $date',
-                                  style: GoogleFonts.poppins(fontSize: 14),
+                                _buildFilterCard(context),
+                                const SizedBox(height: 18),
+                                ..._filteredReports.map(
+                                  (report) =>
+                                      _buildReportTile(context, report),
                                 ),
                               ],
                             ),
-                            trailing: Chip(
-                              label: Text(
-                                status,
-                                style: GoogleFonts.poppins(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              backgroundColor: status == 'Present'
-                                  ? Colors.green[100]
-                                  : Colors.orange[100],
-                              side: BorderSide(
-                                color: status == 'Present'
-                                    ? Colors.green
-                                    : Colors.orange,
-                              ),
-                            ),
                           ),
-                        );
-                      }).toList(),
-                    ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmptyState(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.inbox_outlined,
+            size: 68,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'No reports match the current filters',
+            style: GoogleFonts.poppins(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 8),
+          TextButton(
+            onPressed: _clearFilters,
+            child: const Text('Reset Filters'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFilterCard(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Card(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      elevation: 6,
+      child: Padding(
+        padding: const EdgeInsets.all(20.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.filter_list_rounded,
+                    color: colorScheme.primary),
+                const SizedBox(width: 8),
+                Text(
+                  'Filters',
+                  style: GoogleFonts.poppins(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
+                const Spacer(),
+                TextButton(
+                  onPressed: _clearFilters,
+                  child: const Text('Clear'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            DropdownButtonFormField<String>(
+              value: _selectedWorker,
+              decoration: const InputDecoration(
+                labelText: 'Worker',
+                border: OutlineInputBorder(),
+              ),
+              items: _workerOptions
+                  .map(
+                    (worker) => DropdownMenuItem(
+                      value: worker,
+                      child: Text(worker),
+                    ),
+                  )
+                  .toList(),
+              onChanged: (value) {
+                if (value == null) return;
+                setState(() {
+                  _selectedWorker = value;
+                });
+                _applyFilters();
+              },
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: _selectDate,
+                    icon: const Icon(Icons.calendar_today),
+                    label: Text(
+                      _selectedDate == null
+                          ? 'Select Date'
+                          : _formatDate(_selectedDate!.toIso8601String()),
+                    ),
+                  ),
+                ),
+                if (_selectedDate != null)
+                  IconButton(
+                    icon: const Icon(Icons.clear),
+                    onPressed: () {
+                      setState(() => _selectedDate = null);
+                      _applyFilters();
+                    },
+                  ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildReportTile(BuildContext context, Map<String, dynamic> report) {
+    final status = _getStatus(report);
+    final date = _formatDate(report['date']?.toString());
+    final workerName = report['workerName']?.toString() ?? 'Unknown';
+    final theme = Theme.of(context);
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 14),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(24),
+        color: theme.colorScheme.surface,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.07),
+            blurRadius: 12,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: ListTile(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        onTap: () => _showReportDetails(report),
+        contentPadding: const EdgeInsets.all(18),
+        title: Text(
+          workerName,
+          style: GoogleFonts.poppins(
+            fontSize: 16,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        subtitle: Padding(
+          padding: const EdgeInsets.only(top: 6.0),
+          child: Text(
+            'Date: $date',
+            style: GoogleFonts.poppins(fontSize: 13),
+          ),
+        ),
+        trailing: Chip(
+          label: Text(
+            status,
+            style: GoogleFonts.poppins(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          backgroundColor: status == 'Present'
+              ? Colors.green[100]
+              : Colors.orange[100],
+          side: BorderSide(
+            color: status == 'Present' ? Colors.green : Colors.orange,
+          ),
+        ),
+      ),
     );
   }
 }
