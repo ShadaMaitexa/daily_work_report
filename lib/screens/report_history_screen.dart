@@ -20,9 +20,9 @@ class _ReportHistoryScreenState extends State<ReportHistoryScreen> {
     _loadReports();
   }
 
-  Future<String?> _getWorkerId() async {
+  Future<int?> _getWorkerId() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getString('workerId');
+    return prefs.getInt('workerId');
   }
 
   Future<void> _loadReports() async {
@@ -38,7 +38,8 @@ class _ReportHistoryScreenState extends State<ReportHistoryScreen> {
       return;
     }
 
-    final result = await SheetsApi.getWorkerReports(workerId: workerId);
+    final result =
+        await SheetsApi.getWorkerReports(workerId: workerId.toString());
 
     setState(() {
       _isLoading = false;
@@ -52,15 +53,13 @@ class _ReportHistoryScreenState extends State<ReportHistoryScreen> {
   }
 
   String _getStatus(Map<String, dynamic> report) {
-    // If report exists, status is Present, otherwise Leave
-    return report['tasksCompleted'] != null &&
-            report['tasksCompleted'].toString().isNotEmpty
+    return (report['status'] ?? '').toString() == 'submitted'
         ? 'Present'
         : 'Leave';
   }
 
   String _getTasksPreview(Map<String, dynamic> report) {
-    final tasksCompleted = report['tasksCompleted']?.toString() ?? '';
+    final tasksCompleted = report['completed']?.toString() ?? '';
     if (tasksCompleted.isEmpty) {
       return 'No tasks completed';
     }
@@ -117,16 +116,15 @@ class _ReportHistoryScreenState extends State<ReportHistoryScreen> {
               const SizedBox(height: 24),
               _buildSectionTitle('Tasks Completed'),
               const SizedBox(height: 8),
-              _buildDetailText(report['tasksCompleted']?.toString() ?? 'N/A'),
+              _buildDetailText(report['completed']?.toString() ?? 'N/A'),
               const SizedBox(height: 24),
               _buildSectionTitle('Tasks In Progress'),
               const SizedBox(height: 8),
-              _buildDetailText(
-                  report['tasksInProgress']?.toString() ?? 'N/A'),
+              _buildDetailText(report['inprogress']?.toString() ?? 'N/A'),
               const SizedBox(height: 24),
               _buildSectionTitle('Next Steps'),
               const SizedBox(height: 8),
-              _buildDetailText(report['nextSteps']?.toString() ?? 'N/A'),
+              _buildDetailText(report['nextsteps']?.toString() ?? 'N/A'),
               const SizedBox(height: 24),
               _buildSectionTitle('Issues'),
               const SizedBox(height: 8),

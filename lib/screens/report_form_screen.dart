@@ -83,9 +83,14 @@ class _ReportFormScreenState extends State<ReportFormScreen> {
     }
   }
 
-  Future<String?> _getWorkerId() async {
+  Future<int?> _getWorkerId() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getString('workerId');
+    return prefs.getInt('workerId');
+  }
+
+  Future<String?> _getWorkerName() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('workerName');
   }
 
   Future<void> _submitReport() async {
@@ -105,6 +110,19 @@ class _ReportFormScreenState extends State<ReportFormScreen> {
       return;
     }
 
+    if (await _hasSubmittedToday(workerId)) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('You have already submitted today\'s report.'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    final workerName = await _getWorkerName();
+
     setState(() {
       _isLoading = true;
     });
@@ -118,15 +136,17 @@ class _ReportFormScreenState extends State<ReportFormScreen> {
         .toList();
 
     final reportData = {
-      'tasksCompleted': _tasksCompletedController.text.trim(),
-      'tasksInProgress': _tasksInProgressController.text.trim(),
-      'nextSteps': _nextStepsController.text.trim(),
+      'completed': _tasksCompletedController.text.trim(),
+      'inprogress': _tasksInProgressController.text.trim(),
+      'nextsteps': _nextStepsController.text.trim(),
       'issues': _issuesController.text.trim(),
       'students': students,
+      'date': DateTime.now().toIso8601String().split('T').first,
+      'name': workerName ?? '',
     };
 
     final result = await SheetsApi.submitReport(
-      workerId: workerId,
+      workerId: workerId.toString(),
       data: reportData,
     );
 
@@ -344,5 +364,15 @@ class _ReportFormScreenState extends State<ReportFormScreen> {
         ),
       ),
     );
+  }
+
+  Future<bool> _hasSubmittedToday(int workerId) async {
+    final result =
+        await SheetsApi.checkTodayStatus(workerId: workerId.toString());
+    if (result['success'] == true) {
+      final status = result['status']?.toString().toLowerCase();
+      return status == 'submitted';
+    }
+    return false;
   }
 }

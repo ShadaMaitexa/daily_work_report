@@ -16,6 +16,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   final _authService = AuthService();
   int? _workerId;
+  String? _workerName;
   String _statusMessage = 'Checking status...';
   bool _isStatusLoading = true;
 
@@ -27,8 +28,10 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _loadWorkerId() async {
     final workerId = await _authService.getWorkerId();
+    final workerName = await _authService.getWorkerName();
     setState(() {
       _workerId = workerId;
+      _workerName = workerName;
     });
     if (workerId != null) {
       await _fetchTodayStatus(workerId);
@@ -44,9 +47,8 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() {
       _isStatusLoading = true;
     });
-    final result = await SheetsApi.checkTodayStatus(
-      workerId: workerId.toString(),
-    );
+    final result =
+        await SheetsApi.checkTodayStatus(workerId: workerId.toString());
     String statusText = 'Marked as Leave';
     if (result['success'] == true) {
       final status = (result['status'] ?? '').toString().toLowerCase();
@@ -169,7 +171,7 @@ class _HomeScreenState extends State<HomeScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Hello ${_workerId ?? ''}',
+            'Hello ${_workerName ?? 'Worker'}',
             style: GoogleFonts.poppins(
               fontSize: 26,
               fontWeight: FontWeight.w700,
@@ -177,6 +179,15 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
           const SizedBox(height: 8),
+          if (_workerId != null)
+            Text(
+              'ID: ${_workerId}',
+              style: GoogleFonts.poppins(
+                fontSize: 14,
+                color: theme.colorScheme.onPrimary.withOpacity(0.9),
+              ),
+            ),
+          if (_workerId != null) const SizedBox(height: 4),
           Text(
             'Ready to share today’s progress?',
             style: GoogleFonts.poppins(

@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../services/auth_service.dart';
 import '../services/sheets_api.dart';
 import 'home_screen.dart';
+import 'register_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -47,10 +48,12 @@ class _LoginScreenState extends State<LoginScreen> {
     if (!mounted) return;
 
     if (result['success'] == true && result['workerId'] != null) {
-      final workerId =
-          int.tryParse(result['workerId'].toString());
+      final workerId = int.tryParse(result['workerId'].toString());
       if (workerId != null) {
         await _authService.saveWorkerId(workerId);
+      }
+      if (result['name'] != null) {
+        await _authService.saveWorkerName(result['name'].toString());
       }
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(builder: (context) => const HomeScreen()),
@@ -203,6 +206,22 @@ class _LoginScreenState extends State<LoginScreen> {
                                     ),
                                   )
                                 : const Text('Sign In'),
+                          ),
+                          const SizedBox(height: 16),
+                          TextButton(
+                            onPressed: () {
+                              Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (context) => const RegisterScreen(),
+                                ),
+                              );
+                            },
+                            child: Text(
+                              "New worker? Create account",
+                              style: GoogleFonts.poppins(
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
                           ),
                         ],
                       ),

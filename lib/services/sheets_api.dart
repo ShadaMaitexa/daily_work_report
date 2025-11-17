@@ -3,42 +3,69 @@ import 'package:http/http.dart' as http;
 
 class SheetsApi {
   // TODO: Replace with your Google Apps Script Web App URL
-  static const String _scriptUrl = 'YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL';
+  static const String _scriptUrl =
+      'https://script.google.com/macros/s/AKfycbz3MlFCPCSRyhgKuRK8z4xpeBpyiMR1AUjmYMrvDiGFbuvejxSeMD9DtJIZfq_WUgA7-w/exec';
 
-  static Future<Map<String, dynamic>> _callScript({
+  static Future<Map<String, dynamic>> _postAction({
     required String action,
     Map<String, dynamic>? data,
   }) async {
     try {
+      final body = <String, dynamic>{'action': action};
+      if (data != null) {
+        body.addAll(data);
+      }
+
       final response = await http.post(
         Uri.parse(_scriptUrl),
         headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'action': action,
-          'data': data ?? <String, dynamic>{},
-        }),
+        body: jsonEncode(body),
       );
 
       if (response.statusCode == 200) {
         final decoded = jsonDecode(response.body);
         if (decoded is Map<String, dynamic>) {
+          if (decoded.containsKey('status') &&
+              !decoded.containsKey('success')) {
+            final status = decoded['status']?.toString().toLowerCase();
+            decoded['success'] = status == 'success' || status == 'submitted';
+          }
           return decoded;
         }
-        return {
-          'success': false,
-          'message': 'Invalid response format from server',
-        };
-      } else {
-        return {
-          'success': false,
-          'message': 'Server error: ${response.statusCode}',
-        };
+        return {'success': true, 'data': decoded};
       }
-    } catch (e) {
       return {
         'success': false,
-        'message': 'Error: $e',
+        'message': 'Server error: ${response.statusCode}',
       };
+    } catch (e) {
+      return {'success': false, 'message': 'Error: $e'};
+    }
+  }
+
+  static Future<Map<String, dynamic>> _getAction(
+    Map<String, String> params,
+  ) async {
+    try {
+      final uri = Uri.parse(_scriptUrl).replace(queryParameters: params);
+      final response = await http.get(uri);
+
+      if (response.statusCode == 200) {
+        final decoded = jsonDecode(response.body);
+        if (decoded is Map<String, dynamic>) {
+          if (!decoded.containsKey('success')) {
+            decoded['success'] = true;
+          }
+          return decoded;
+        }
+        return {'success': true, 'reports': decoded};
+      }
+      return {
+        'success': false,
+        'message': 'Server error: ${response.statusCode}',
+      };
+    } catch (e) {
+      return {'success': false, 'message': 'Error: $e'};
     }
   }
 
@@ -47,13 +74,9 @@ class SheetsApi {
     required String email,
     required String password,
   }) {
-    return _callScript(
-      action: 'registerWorker',
-      data: {
-        'name': name,
-        'email': email,
-        'password': password,
-      },
+    return _postAction(
+      action: 'register',
+      data: {'name': name, 'email': email, 'password': password, 'phone': ''},
     );
   }
 
@@ -61,12 +84,9 @@ class SheetsApi {
     required String email,
     required String password,
   }) {
-    return _callScript(
-      action: 'loginWorker',
-      data: {
-        'email': email,
-        'password': password,
-      },
+    return _postAction(
+      action: 'login',
+      data: {'email': email, 'password': password},
     );
   }
 
@@ -74,35 +94,97 @@ class SheetsApi {
     required String workerId,
     required Map<String, dynamic> data,
   }) {
-    return _callScript(
+    return _postAction(
       action: 'submitReport',
-      data: {
-        'workerId': workerId,
-        ...data,
-      },
+      data: {'workerId': workerId, ...data},
     );
   }
 
   static Future<Map<String, dynamic>> getWorkerReports({
     required String workerId,
-  }) {
-    return _callScript(
-      action: 'getWorkerReports',
-      data: {'workerId': workerId},
-    );
+  }) async {
+    final response = await _getAction({
+      'action': 'getWorkerReports',
+      'workerId': workerId,
+    });
+    if (response['success'] == true) {
+      final raw = response['reports'] ?? response['data'];
+      response['reports'] = _normalizeReports(raw);
+    }
+    return response;
   }
 
   static Future<Map<String, dynamic>> getAllReports() {
-    return _callScript(action: 'getAllReports');
+    return _getAction({'action': 'getAllReports'});
   }
 
   static Future<Map<String, dynamic>> checkTodayStatus({
     required String workerId,
-  }) {
-    return _callScript(
-      action: 'checkTodayStatus',
-      data: {'workerId': workerId},
-    );
+  }) async {
+    final reportsResponse = await getWorkerReports(workerId: workerId);
+    if (reportsResponse['success'] == true) {
+      final reports =
+          (reportsResponse['reports'] as List<Map<String, dynamic>>?) ?? [];
+      final today = DateTime.now().toIso8601String().split('T').first;
+      final entry = reports.cast<Map<String, dynamic>?>().firstWhere(
+        (r) => r?['date'] == today,
+        orElse: () => null,
+      );
+      final status = entry == null
+          ? 'leave'
+          : (entry['status']?.toString() ?? 'leave');
+      return {'success': true, 'status': status, 'report': entry};
+    }
+    return reportsResponse;
+  }
+
+  static List<Map<String, dynamic>> _normalizeReports(dynamic raw) {
+    if (raw is List) {
+      return raw.map<Map<String, dynamic>>((item) {
+        if (item is Map) {
+          final map = Map<String, dynamic>.from(item);
+          final String date = map['date']?.toString() ?? '';
+          final String status =
+              map['status']?.toString().toLowerCase() ?? 'leave';
+          Map<String, dynamic> data = {};
+          if (map['data'] is Map) {
+            data = Map<String, dynamic>.from(map['data']);
+          } else {
+            data = map;
+          }
+          return {
+            'date': date,
+            'status': status,
+            'completed': data['completed'] ?? data['tasksCompleted'] ?? '',
+            'inprogress': data['inprogress'] ?? data['tasksInProgress'] ?? '',
+            'nextsteps': data['nextsteps'] ?? data['nextSteps'] ?? '',
+            'issues': data['issues'] ?? '',
+            'students': _normalizeStudents(data['students']),
+          };
+        }
+        return {
+          'date': item?.toString() ?? '',
+          'status': 'leave',
+          'completed': '',
+          'inprogress': '',
+          'nextsteps': '',
+          'issues': '',
+          'students': const [],
+        };
+      }).toList();
+    }
+    return [];
+  }
+
+  static List<dynamic> _normalizeStudents(dynamic students) {
+    if (students == null) return [];
+    if (students is List) return students;
+    if (students is String) {
+      try {
+        final decoded = jsonDecode(students);
+        if (decoded is List) return decoded;
+      } catch (_) {}
+    }
+    return [];
   }
 }
-
