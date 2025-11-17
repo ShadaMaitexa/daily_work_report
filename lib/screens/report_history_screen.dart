@@ -20,9 +20,9 @@ class _ReportHistoryScreenState extends State<ReportHistoryScreen> {
     _loadReports();
   }
 
-  Future<int?> _getWorkerId() async {
+  Future<String?> _getWorkerId() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getInt('workerId');
+    return prefs.getInt('workerId')?.toString();
   }
 
   Future<void> _loadReports() async {
@@ -53,13 +53,13 @@ class _ReportHistoryScreenState extends State<ReportHistoryScreen> {
   }
 
   String _getStatus(Map<String, dynamic> report) {
-    return (report['status'] ?? '').toString() == 'submitted'
-        ? 'Present'
-        : 'Leave';
+    final status = (report['status'] ?? '').toString().toLowerCase();
+    return status == 'submitted' ? 'Present' : 'Leave';
   }
 
   String _getTasksPreview(Map<String, dynamic> report) {
-    final tasksCompleted = report['completed']?.toString() ?? '';
+    final tasksCompleted =
+        report['completed']?.toString() ?? report['tasksCompleted']?.toString() ?? '';
     if (tasksCompleted.isEmpty) {
       return 'No tasks completed';
     }

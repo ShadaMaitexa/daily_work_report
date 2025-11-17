@@ -98,7 +98,7 @@ class SheetsApi {
       action: 'submitReport',
       data: {'workerId': workerId, ...data},
     );
-  }
+  } 
 
   static Future<Map<String, dynamic>> getWorkerReports({
     required String workerId,
@@ -109,7 +109,7 @@ class SheetsApi {
     });
     if (response['success'] == true) {
       final raw = response['reports'] ?? response['data'];
-      response['reports'] = _normalizeReports(raw);
+      response['reports'] = _normalizeWorkerReports(raw);
     }
     return response;
   }
@@ -138,48 +138,37 @@ class SheetsApi {
     return reportsResponse;
   }
 
-  static List<Map<String, dynamic>> _normalizeReports(dynamic raw) {
+  static List<Map<String, dynamic>> _normalizeWorkerReports(dynamic raw) {
     if (raw is List) {
-      return raw.map<Map<String, dynamic>>((item) {
-        if (item is Map) {
-          final map = Map<String, dynamic>.from(item);
-          final String date = map['date']?.toString() ?? '';
-          final String status =
-              map['status']?.toString().toLowerCase() ?? 'leave';
-          Map<String, dynamic> data = {};
-          if (map['data'] is Map) {
-            data = Map<String, dynamic>.from(map['data']);
-          } else {
-            data = map;
-          }
-          return {
-            'date': date,
-            'status': status,
-            'completed': data['completed'] ?? data['tasksCompleted'] ?? '',
-            'inprogress': data['inprogress'] ?? data['tasksInProgress'] ?? '',
-            'nextsteps': data['nextsteps'] ?? data['nextSteps'] ?? '',
-            'issues': data['issues'] ?? '',
-            'students': _normalizeStudents(data['students']),
-          };
+      final reports = raw.whereType<Map>().map((item) {
+        final map = Map<String, dynamic>.from(item);
+        Map<String, dynamic> data = {};
+        if (map['data'] is Map) {
+          data = Map<String, dynamic>.from(map['data']);
+        } else {
+          data = map;
         }
         return {
-          'date': item?.toString() ?? '',
-          'status': 'leave',
-          'completed': '',
-          'inprogress': '',
-          'nextsteps': '',
-          'issues': '',
-          'students': const [],
+          'date': map['date']?.toString() ?? '',
+          'status': map['status']?.toString().toLowerCase() ?? 'leave',
+          'completed': data['completed'] ?? data['tasksCompleted'] ?? '',
+          'inprogress': data['inprogress'] ?? data['tasksInProgress'] ?? '',
+          'nextsteps': data['nextsteps'] ?? data['nextSteps'] ?? '',
+          'issues': data['issues'] ?? '',
+          'students': _decodeStudents(data['students']),
         };
       }).toList();
+
+      reports.sort((a, b) => (b['date'] ?? '').compareTo(a['date'] ?? ''));
+      return reports;
     }
     return [];
   }
 
-  static List<dynamic> _normalizeStudents(dynamic students) {
+  static List<dynamic> _decodeStudents(dynamic students) {
     if (students == null) return [];
     if (students is List) return students;
-    if (students is String) {
+    if (students is String && students.isNotEmpty) {
       try {
         final decoded = jsonDecode(students);
         if (decoded is List) return decoded;
