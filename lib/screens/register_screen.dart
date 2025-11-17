@@ -14,6 +14,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
+  final _phoneController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _isLoading = false;
   bool _obscurePassword = true;
@@ -22,6 +23,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   void dispose() {
     _nameController.dispose();
     _emailController.dispose();
+    _phoneController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
@@ -38,6 +40,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     final result = await SheetsApi.registerWorker(
       name: _nameController.text.trim(),
       email: _emailController.text.trim(),
+      phone: _phoneController.text.trim(),
       password: _passwordController.text,
     );
 
@@ -165,6 +168,24 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               }
                               if (!value.contains('@')) {
                                 return 'Please enter a valid email';
+                              }
+                              return null;
+                            },
+                          ),
+                          const SizedBox(height: 18),
+                          _buildLabel('Phone'),
+                          const SizedBox(height: 8),
+                          TextFormField(
+                            controller: _phoneController,
+                            decoration: _fieldDecoration(
+                              context,
+                              hint: '+1 555 0100',
+                              icon: Icons.phone_outlined,
+                            ),
+                            keyboardType: TextInputType.phone,
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'Please enter your phone number';
                               }
                               return null;
                             },

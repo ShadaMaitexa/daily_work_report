@@ -72,11 +72,17 @@ class SheetsApi {
   static Future<Map<String, dynamic>> registerWorker({
     required String name,
     required String email,
+    required String phone,
     required String password,
   }) {
     return _postAction(
       action: 'register',
-      data: {'name': name, 'email': email, 'password': password, 'phone': ''},
+      data: {
+        'name': name,
+        'email': email,
+        'phone': phone,
+        'password': password,
+      },
     );
   }
 
@@ -98,7 +104,7 @@ class SheetsApi {
       action: 'submitReport',
       data: {'workerId': workerId, ...data},
     );
-  } 
+  }
 
   static Future<Map<String, dynamic>> getWorkerReports({
     required String workerId,
