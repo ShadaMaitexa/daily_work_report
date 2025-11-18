@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../services/auth_service.dart';
 import '../services/sheets_api.dart';
+import '../theme/app_theme.dart';
 import 'login_screen.dart';
 import 'report_form_screen.dart';
 import 'report_history_screen.dart';
@@ -47,8 +48,9 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() {
       _isStatusLoading = true;
     });
-    final result =
-        await SheetsApi.checkTodayStatus(workerId: workerId.toString());
+    final result = await SheetsApi.checkTodayStatus(
+      workerId: workerId.toString(),
+    );
     String statusText = 'Marked as Leave';
     if (result['success'] == true) {
       final status = (result['status'] ?? '').toString().toLowerCase();
@@ -77,36 +79,38 @@ class _HomeScreenState extends State<HomeScreen> {
     final colorScheme = Theme.of(context).colorScheme;
     return Scaffold(
       body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [
-              colorScheme.primary.withOpacity(0.08),
-              colorScheme.surface,
-            ],
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-          ),
-        ),
+        decoration: const BoxDecoration(gradient: AcadenoTheme.auroraGradient),
         child: SafeArea(
           child: Column(
             children: [
               Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 12,
+                ),
                 child: Row(
                   children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: AcadenoTheme.heroGradient,
+                      ),
+                      child: Image.asset('assets/logo.png', height: 32),
+                    ),
+                    const SizedBox(width: 14),
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Daily Work Report',
+                          'Acadeno Workspace',
                           style: GoogleFonts.poppins(
                             fontSize: 22,
                             fontWeight: FontWeight.w700,
                           ),
                         ),
                         Text(
-                          'Stay on top of your progress',
+                          'Where AI builds your career momentum',
                           style: GoogleFonts.poppins(
                             fontSize: 13,
                             color: colorScheme.onSurfaceVariant,
@@ -150,14 +154,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return Container(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(28),
-        gradient: LinearGradient(
-          colors: [
-            theme.colorScheme.primary,
-            theme.colorScheme.primaryContainer,
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        gradient: AcadenoTheme.heroGradient,
         boxShadow: [
           BoxShadow(
             color: theme.colorScheme.primary.withOpacity(0.25),
@@ -170,6 +167,42 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.18),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Row(
+                  children: const [
+                    Icon(Icons.bolt, size: 16, color: Colors.white),
+                    SizedBox(width: 6),
+                    Text(
+                      'Today',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Spacer(),
+              Text(
+                DateTime.now().toIso8601String().split('T').first,
+                style: GoogleFonts.poppins(
+                  color: Colors.white70,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
           Text(
             'Hello ${_workerName ?? 'Worker'}',
             style: GoogleFonts.poppins(
@@ -214,17 +247,17 @@ class _HomeScreenState extends State<HomeScreen> {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(_statusMessage == 'Report Submitted'
-                    ? Icons.check_circle
-                    : Icons.edit_calendar_outlined),
+                Icon(
+                  _statusMessage == 'Report Submitted'
+                      ? Icons.check_circle
+                      : Icons.edit_calendar_outlined,
+                ),
                 const SizedBox(width: 8),
                 Text(
                   _statusMessage == 'Report Submitted'
                       ? 'Already Submitted'
                       : 'Submit Report',
-                  style: GoogleFonts.poppins(
-                    fontWeight: FontWeight.w600,
-                  ),
+                  style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
                 ),
               ],
             ),
@@ -246,10 +279,7 @@ class _HomeScreenState extends State<HomeScreen> {
           children: [
             Row(
               children: [
-                Icon(
-                  Icons.bolt_rounded,
-                  color: theme.colorScheme.primary,
-                ),
+                Icon(Icons.bolt_rounded, color: theme.colorScheme.primary),
                 const SizedBox(width: 8),
                 Text(
                   "Today's Status",
@@ -260,8 +290,10 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 const Spacer(),
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
                   decoration: BoxDecoration(
                     color: theme.colorScheme.primary.withOpacity(0.12),
                     borderRadius: BorderRadius.circular(20),
@@ -293,8 +325,8 @@ class _HomeScreenState extends State<HomeScreen> {
               _isStatusLoading
                   ? 'Fetching latest activity...'
                   : _statusMessage == 'Report Submitted'
-                      ? 'Great job staying consistent today!'
-                      : 'No report yet. Tap Submit to mark attendance.',
+                  ? 'Great job staying consistent today!'
+                  : 'No report yet. Tap Submit to mark attendance.',
               style: GoogleFonts.poppins(
                 color: theme.colorScheme.onSurfaceVariant,
               ),
@@ -320,20 +352,18 @@ class _HomeScreenState extends State<HomeScreen> {
         'action': _statusMessage == 'Report Submitted'
             ? null
             : () => Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (context) => const ReportFormScreen(),
-                  ),
-                )
+                MaterialPageRoute(
+                  builder: (context) => const ReportFormScreen(),
+                ),
+              ),
       },
       {
         'icon': Icons.history_rounded,
         'title': 'View History',
         'description': 'See previous submissions',
         'action': () => Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (context) => const ReportHistoryScreen(),
-              ),
-            )
+          MaterialPageRoute(builder: (context) => const ReportHistoryScreen()),
+        ),
       },
     ];
 
@@ -342,10 +372,7 @@ class _HomeScreenState extends State<HomeScreen> {
       children: [
         Text(
           'Quick Actions',
-          style: GoogleFonts.poppins(
-            fontSize: 18,
-            fontWeight: FontWeight.w700,
-          ),
+          style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w700),
         ),
         const SizedBox(height: 12),
         ...items.map(
@@ -367,8 +394,9 @@ class _HomeScreenState extends State<HomeScreen> {
                 borderRadius: BorderRadius.circular(20),
               ),
               leading: CircleAvatar(
-                backgroundColor:
-                    Theme.of(context).colorScheme.primary.withOpacity(0.15),
+                backgroundColor: Theme.of(
+                  context,
+                ).colorScheme.primary.withOpacity(0.15),
                 child: Icon(
                   item['icon'] as IconData,
                   color: Theme.of(context).colorScheme.primary,
@@ -376,9 +404,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               title: Text(
                 item['title'] as String,
-                style: GoogleFonts.poppins(
-                  fontWeight: FontWeight.w600,
-                ),
+                style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
               ),
               subtitle: Text(
                 item['description'] as String,
@@ -394,4 +420,3 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 }
-

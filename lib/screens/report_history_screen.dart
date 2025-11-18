@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
 import '../services/sheets_api.dart';
+import '../theme/app_theme.dart';
 import 'report_form_screen.dart';
 
 class ReportHistoryScreen extends StatefulWidget {
@@ -44,8 +45,9 @@ class _ReportHistoryScreenState extends State<ReportHistoryScreen> {
     }
 
     try {
-      final result =
-          await SheetsApi.getWorkerReports(workerId: workerId.toString());
+      final result = await SheetsApi.getWorkerReports(
+        workerId: workerId.toString(),
+      );
 
       print('Report History - API Result: $result');
 
@@ -53,7 +55,7 @@ class _ReportHistoryScreenState extends State<ReportHistoryScreen> {
         final reportsList = result['reports'];
         print('Reports list: $reportsList');
         print('Reports list type: ${reportsList.runtimeType}');
-        
+
         if (reportsList != null) {
           if (reportsList is List) {
             setState(() {
@@ -83,8 +85,9 @@ class _ReportHistoryScreenState extends State<ReportHistoryScreen> {
         print('API call was not successful: ${result['message']}');
         setState(() {
           _isLoading = false;
-          _errorMessage = result['message']?.toString() ?? 
-                         'Failed to load reports. Please try again.';
+          _errorMessage =
+              result['message']?.toString() ??
+              'Failed to load reports. Please try again.';
         });
       }
     } catch (e) {
@@ -103,27 +106,32 @@ class _ReportHistoryScreenState extends State<ReportHistoryScreen> {
 
   String _formatDate(dynamic dateValue) {
     if (dateValue == null) return 'N/A';
-    
+
     try {
       final dateStr = dateValue.toString().trim();
-      
+
       // Extract date parts from string (handles "2025-11-17" format)
       if (dateStr.contains('-')) {
         final parts = dateStr.split('-');
         if (parts.length >= 3) {
           try {
             // Extract just the date part (YYYY-MM-DD) before any time or other data
-            final dateOnly = parts[0] + '-' + parts[1] + '-' + parts[2].split('T').first.split(' ').first;
+            final dateOnly =
+                parts[0] +
+                '-' +
+                parts[1] +
+                '-' +
+                parts[2].split('T').first.split(' ').first;
             final dateParts = dateOnly.split('-');
-            
+
             if (dateParts.length == 3) {
               final year = int.parse(dateParts[0]);
               final month = int.parse(dateParts[1]);
               final day = int.parse(dateParts[2]);
-              
+
               // Create DateTime in local timezone (not UTC) to avoid day shift
               final dateTime = DateTime(year, month, day);
-              
+
               // Format as "17 November 2025"
               return DateFormat('d MMMM yyyy').format(dateTime);
             }
@@ -132,18 +140,20 @@ class _ReportHistoryScreenState extends State<ReportHistoryScreen> {
           }
         }
       }
-      
+
       // Try parsing ISO format with timezone (2025-11-17T18:30:00.000Z)
       if (dateStr.contains('T')) {
         try {
           final parsed = DateTime.parse(dateStr);
           // Use the date components directly to avoid timezone issues
-          return DateFormat('d MMMM yyyy').format(DateTime(parsed.year, parsed.month, parsed.day));
+          return DateFormat(
+            'd MMMM yyyy',
+          ).format(DateTime(parsed.year, parsed.month, parsed.day));
         } catch (e) {
           print('Error parsing ISO date: $e');
         }
       }
-      
+
       // Try parsing as timestamp
       final timestamp = int.tryParse(dateStr);
       if (timestamp != null) {
@@ -153,12 +163,14 @@ class _ReportHistoryScreenState extends State<ReportHistoryScreen> {
               ? DateTime.fromMillisecondsSinceEpoch(timestamp)
               : DateTime.fromMillisecondsSinceEpoch(timestamp * 1000);
           // Use date components to avoid timezone shift
-          return DateFormat('d MMMM yyyy').format(DateTime(dateTime.year, dateTime.month, dateTime.day));
+          return DateFormat(
+            'd MMMM yyyy',
+          ).format(DateTime(dateTime.year, dateTime.month, dateTime.day));
         } catch (e) {
           print('Error parsing timestamp: $e');
         }
       }
-      
+
       // Fallback: return as-is
       return dateStr;
     } catch (e) {
@@ -169,7 +181,9 @@ class _ReportHistoryScreenState extends State<ReportHistoryScreen> {
 
   String _getTasksPreview(Map<String, dynamic> report) {
     final tasksCompleted =
-        report['completed']?.toString() ?? report['tasksCompleted']?.toString() ?? '';
+        report['completed']?.toString() ??
+        report['tasksCompleted']?.toString() ??
+        '';
     if (tasksCompleted.isEmpty) {
       return 'No tasks completed';
     }
@@ -190,7 +204,7 @@ class _ReportHistoryScreenState extends State<ReportHistoryScreen> {
       final timestamp = DateTime.parse(timestampStr);
       final now = DateTime.now();
       final difference = now.difference(timestamp);
-      
+
       // Check if within 48 hours (2 days)
       return difference.inHours < 48;
     } catch (e) {
@@ -203,7 +217,9 @@ class _ReportHistoryScreenState extends State<ReportHistoryScreen> {
     if (!_canEditReport(report)) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('This report can only be edited within 48 hours of submission.'),
+          content: Text(
+            'This report can only be edited within 48 hours of submission.',
+          ),
           backgroundColor: Colors.orange,
           duration: Duration(seconds: 3),
         ),
@@ -211,16 +227,16 @@ class _ReportHistoryScreenState extends State<ReportHistoryScreen> {
       return;
     }
 
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) => ReportFormScreen(
-          reportToEdit: report,
-        ),
-      ),
-    ).then((_) {
-      // Refresh reports after editing
-      _loadReports();
-    });
+    Navigator.of(context)
+        .push(
+          MaterialPageRoute(
+            builder: (context) => ReportFormScreen(reportToEdit: report),
+          ),
+        )
+        .then((_) {
+          // Refresh reports after editing
+          _loadReports();
+        });
   }
 
   void _showReportDetails(Map<String, dynamic> report) {
@@ -262,10 +278,7 @@ class _ReportHistoryScreenState extends State<ReportHistoryScreen> {
               const SizedBox(height: 24),
               _buildDetailRow('Date', _formatDate(report['date'])),
               const SizedBox(height: 16),
-              _buildDetailRow(
-                'Status',
-                _getStatus(report),
-              ),
+              _buildDetailRow('Status', _getStatus(report)),
               if (_canEditReport(report)) ...[
                 const SizedBox(height: 24),
                 SizedBox(
@@ -354,12 +367,7 @@ class _ReportHistoryScreenState extends State<ReportHistoryScreen> {
             ),
           ),
         ),
-        Expanded(
-          child: Text(
-            value,
-            style: GoogleFonts.poppins(fontSize: 14),
-          ),
-        ),
+        Expanded(child: Text(value, style: GoogleFonts.poppins(fontSize: 14))),
       ],
     );
   }
@@ -367,10 +375,7 @@ class _ReportHistoryScreenState extends State<ReportHistoryScreen> {
   Widget _buildSectionTitle(String title) {
     return Text(
       title,
-      style: GoogleFonts.poppins(
-        fontSize: 18,
-        fontWeight: FontWeight.bold,
-      ),
+      style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold),
     );
   }
 
@@ -382,10 +387,7 @@ class _ReportHistoryScreenState extends State<ReportHistoryScreen> {
         color: Colors.grey[100],
         borderRadius: BorderRadius.circular(8),
       ),
-      child: Text(
-        text,
-        style: GoogleFonts.poppins(fontSize: 14),
-      ),
+      child: Text(text, style: GoogleFonts.poppins(fontSize: 14)),
     );
   }
 
@@ -395,155 +397,192 @@ class _ReportHistoryScreenState extends State<ReportHistoryScreen> {
       appBar: AppBar(
         title: Text(
           'Report History',
-          style: GoogleFonts.poppins(fontWeight: FontWeight.bold),
+          style: GoogleFonts.poppins(
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
+        ),
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(gradient: AcadenoTheme.heroGradient),
         ),
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _errorMessage != null
-              ? Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(24.0),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
+      body: Container(
+        decoration: const BoxDecoration(gradient: AcadenoTheme.auroraGradient),
+        child: _isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : _errorMessage != null
+            ? Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(24.0),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(24),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          gradient: AcadenoTheme.heroGradient,
+                        ),
+                        child: const Icon(
                           Icons.error_outline,
-                          size: 64,
-                          color: Colors.red[300],
+                          size: 48,
+                          color: Colors.white,
                         ),
-                        const SizedBox(height: 16),
-                        Text(
-                          'Error Loading Reports',
-                          style: GoogleFonts.poppins(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.grey[800],
-                          ),
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Error Loading Reports',
+                        style: GoogleFonts.poppins(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
                         ),
-                        const SizedBox(height: 8),
-                        Text(
-                          _errorMessage!,
-                          textAlign: TextAlign.center,
-                          style: GoogleFonts.poppins(
-                            fontSize: 14,
-                            color: Colors.grey[600],
-                          ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        _errorMessage!,
+                        textAlign: TextAlign.center,
+                        style: GoogleFonts.poppins(
+                          fontSize: 14,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
-                        const SizedBox(height: 24),
-                        ElevatedButton.icon(
-                          onPressed: _loadReports,
-                          icon: const Icon(Icons.refresh),
-                          label: const Text('Retry'),
-                        ),
-                      ],
-                    ),
+                      ),
+                      const SizedBox(height: 24),
+                      ElevatedButton.icon(
+                        onPressed: _loadReports,
+                        icon: const Icon(Icons.refresh),
+                        label: const Text('Retry'),
+                      ),
+                    ],
                   ),
-                )
-              : _reports.isEmpty
-                  ? Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.inbox,
-                            size: 64,
-                            color: Colors.grey[400],
-                          ),
-                          const SizedBox(height: 16),
-                          Text(
-                            'No reports found',
-                            style: GoogleFonts.poppins(
-                              fontSize: 18,
-                              color: Colors.grey[600],
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            'Your submitted reports will appear here',
-                            style: GoogleFonts.poppins(
-                              fontSize: 14,
-                              color: Colors.grey[500],
-                            ),
+                ),
+              )
+            : _reports.isEmpty
+            ? Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(24),
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.surfaceVariant.withOpacity(0.6),
+                      ),
+                      child: Icon(
+                        Icons.inbox,
+                        size: 48,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'No reports found',
+                      style: GoogleFonts.poppins(fontSize: 18),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Your submitted reports will appear here',
+                      style: GoogleFonts.poppins(
+                        fontSize: 14,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            : RefreshIndicator(
+                onRefresh: _loadReports,
+                child: ListView.builder(
+                  padding: const EdgeInsets.all(16.0),
+                  itemCount: _reports.length,
+                  itemBuilder: (context, index) {
+                    final report = _reports[index];
+                    final status = _getStatus(report);
+                    final tasksPreview = _getTasksPreview(report);
+                    final canEdit = _canEditReport(report);
+
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 14),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(24),
+                        color: Theme.of(context).colorScheme.surface,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.05),
+                            blurRadius: 12,
+                            offset: const Offset(0, 8),
                           ),
                         ],
                       ),
-                    )
-              : RefreshIndicator(
-                  onRefresh: _loadReports,
-                  child: ListView.builder(
-                    padding: const EdgeInsets.all(16.0),
-                    itemCount: _reports.length,
-                    itemBuilder: (context, index) {
-                      final report = _reports[index];
-                      final status = _getStatus(report);
-                      final tasksPreview = _getTasksPreview(report);
-
-                      final canEdit = _canEditReport(report);
-                      
-                      return Card(
-                        margin: const EdgeInsets.only(bottom: 12),
-                        child: ListTile(
-                          contentPadding: const EdgeInsets.all(16),
-                          onTap: () => _showReportDetails(report),
-                          title: Row(
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  _formatDate(report['date']),
-                                  style: GoogleFonts.poppins(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 16,
-                                  ),
-                                ),
-                              ),
-                              if (canEdit)
-                                IconButton(
-                                  icon: const Icon(Icons.edit, size: 20),
-                                  color: Colors.blue,
-                                  tooltip: 'Edit report (within 48 hours)',
-                                  onPressed: () => _editReport(report),
-                                ),
-                            ],
-                          ),
-                          subtitle: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const SizedBox(height: 8),
-                              Text(
-                                tasksPreview,
+                      child: ListTile(
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(24),
+                        ),
+                        contentPadding: const EdgeInsets.all(20),
+                        onTap: () => _showReportDetails(report),
+                        title: Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                _formatDate(report['date']),
                                 style: GoogleFonts.poppins(
-                                  fontSize: 14,
-                                  color: Colors.grey[700],
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
                                 ),
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
                               ),
-                            ],
-                          ),
-                          trailing: Chip(
-                            label: Text(
-                              status,
+                            ),
+                            if (canEdit)
+                              IconButton(
+                                icon: const Icon(Icons.edit, size: 20),
+                                color: Theme.of(context).colorScheme.primary,
+                                tooltip: 'Edit report (within 48 hours)',
+                                onPressed: () => _editReport(report),
+                              ),
+                          ],
+                        ),
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const SizedBox(height: 8),
+                            Text(
+                              tasksPreview,
                               style: GoogleFonts.poppins(
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onSurfaceVariant,
                               ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
                             ),
-                            backgroundColor: status == 'Present'
-                                ? Colors.green[100]
-                                : Colors.orange[100],
-                            side: BorderSide(
-                              color: status == 'Present'
-                                  ? Colors.green
-                                  : Colors.orange,
-                              width: 1,
+                          ],
+                        ),
+                        trailing: Chip(
+                          label: Text(
+                            status,
+                            style: GoogleFonts.poppins(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
                             ),
+                          ),
+                          backgroundColor: status == 'Present'
+                              ? Theme.of(context).colorScheme.tertiaryContainer
+                              : Theme.of(
+                                  context,
+                                ).colorScheme.secondaryContainer,
+                          side: BorderSide(
+                            color: status == 'Present'
+                                ? Theme.of(context).colorScheme.tertiary
+                                : Theme.of(context).colorScheme.secondary,
                           ),
                         ),
-                      );
-                    },
-                  ),
+                      ),
+                    );
+                  },
                 ),
+              ),
+      ),
     );
   }
 }

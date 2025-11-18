@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import '../services/auth_service.dart';
 import '../services/sheets_api.dart';
+import '../theme/app_theme.dart';
 import 'login_screen.dart';
 
 class AdminDashboard extends StatefulWidget {
@@ -43,9 +44,10 @@ class _AdminDashboardState extends State<AdminDashboard> {
       final workers = <String>{};
       for (final report in reports) {
         // Try multiple field names for worker name
-        final workerName = report['workerName']?.toString() ?? 
-                         report['name']?.toString() ?? 
-                         'Unknown';
+        final workerName =
+            report['workerName']?.toString() ??
+            report['name']?.toString() ??
+            'Unknown';
         if (workerName.isNotEmpty && workerName != 'Unknown') {
           workers.add(workerName);
         }
@@ -70,9 +72,10 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
     if (_selectedWorker != 'All Workers') {
       filtered = filtered.where((report) {
-        final workerName = report['workerName']?.toString() ?? 
-                          report['name']?.toString() ?? 
-                          '';
+        final workerName =
+            report['workerName']?.toString() ??
+            report['name']?.toString() ??
+            '';
         return workerName == _selectedWorker;
       }).toList();
     }
@@ -119,34 +122,40 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
   String _getStatus(Map<String, dynamic> report) {
     // Check multiple field names for tasks completed
-    final hasData = (report['tasksCompleted']?.toString().isNotEmpty ?? false) ||
-                   (report['completed']?.toString().isNotEmpty ?? false);
+    final hasData =
+        (report['tasksCompleted']?.toString().isNotEmpty ?? false) ||
+        (report['completed']?.toString().isNotEmpty ?? false);
     return hasData ? 'Present' : 'Leave';
   }
 
   String _formatDate(dynamic dateValue) {
     if (dateValue == null) return 'N/A';
-    
+
     try {
       final dateStr = dateValue.toString().trim();
-      
+
       // Extract date parts from string (handles "2025-11-17" format)
       if (dateStr.contains('-')) {
         final parts = dateStr.split('-');
         if (parts.length >= 3) {
           try {
             // Extract just the date part (YYYY-MM-DD) before any time or other data
-            final dateOnly = parts[0] + '-' + parts[1] + '-' + parts[2].split('T').first.split(' ').first;
+            final dateOnly =
+                parts[0] +
+                '-' +
+                parts[1] +
+                '-' +
+                parts[2].split('T').first.split(' ').first;
             final dateParts = dateOnly.split('-');
-            
+
             if (dateParts.length == 3) {
               final year = int.parse(dateParts[0]);
               final month = int.parse(dateParts[1]);
               final day = int.parse(dateParts[2]);
-              
+
               // Create DateTime in local timezone (not UTC) to avoid day shift
               final dateTime = DateTime(year, month, day);
-              
+
               // Format as "17 November 2025"
               return DateFormat('d MMMM yyyy').format(dateTime);
             }
@@ -155,18 +164,20 @@ class _AdminDashboardState extends State<AdminDashboard> {
           }
         }
       }
-      
+
       // Try parsing ISO format with timezone (2025-11-17T18:30:00.000Z)
       if (dateStr.contains('T')) {
         try {
           final parsed = DateTime.parse(dateStr);
           // Use the date components directly to avoid timezone issues
-          return DateFormat('d MMMM yyyy').format(DateTime(parsed.year, parsed.month, parsed.day));
+          return DateFormat(
+            'd MMMM yyyy',
+          ).format(DateTime(parsed.year, parsed.month, parsed.day));
         } catch (e) {
           print('Error parsing ISO date: $e');
         }
       }
-      
+
       // Fallback: return as-is
       return dateStr;
     } catch (e) {
@@ -212,19 +223,31 @@ class _AdminDashboardState extends State<AdminDashboard> {
                 ),
               ),
               const SizedBox(height: 24),
-              _buildDetailRow('Worker', report['workerName']?.toString() ?? 
-                                        report['name']?.toString() ?? 
-                                        'Unknown'),
+              _buildDetailRow(
+                'Worker',
+                report['workerName']?.toString() ??
+                    report['name']?.toString() ??
+                    'Unknown',
+              ),
               const SizedBox(height: 12),
               _buildDetailRow('Date', _formatDate(report['date'])),
               const SizedBox(height: 12),
               _buildDetailRow('Status', _getStatus(report)),
               const SizedBox(height: 24),
-              _buildSection('Tasks Completed', report['tasksCompleted'] ?? report['completed']),
+              _buildSection(
+                'Tasks Completed',
+                report['tasksCompleted'] ?? report['completed'],
+              ),
               const SizedBox(height: 16),
-              _buildSection('Tasks In Progress', report['tasksInProgress'] ?? report['inprogress']),
+              _buildSection(
+                'Tasks In Progress',
+                report['tasksInProgress'] ?? report['inprogress'],
+              ),
               const SizedBox(height: 16),
-              _buildSection('Next Steps', report['nextSteps'] ?? report['nextsteps']),
+              _buildSection(
+                'Next Steps',
+                report['nextSteps'] ?? report['nextsteps'],
+              ),
               const SizedBox(height: 16),
               _buildSection('Issues', report['issues']),
               if (report['students'] != null &&
@@ -280,10 +303,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
       children: [
         Text(
           title,
-          style: GoogleFonts.poppins(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-          ),
+          style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 8),
         Container(
@@ -318,12 +338,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
             ),
           ),
         ),
-        Expanded(
-          child: Text(
-            value,
-            style: GoogleFonts.poppins(fontSize: 14),
-          ),
-        ),
+        Expanded(child: Text(value, style: GoogleFonts.poppins(fontSize: 14))),
       ],
     );
   }
@@ -342,24 +357,26 @@ class _AdminDashboardState extends State<AdminDashboard> {
     final colorScheme = Theme.of(context).colorScheme;
     return Scaffold(
       body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [
-              colorScheme.surface,
-              colorScheme.surfaceVariant.withOpacity(0.6),
-            ],
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-          ),
-        ),
+        decoration: const BoxDecoration(gradient: AcadenoTheme.auroraGradient),
         child: SafeArea(
           child: Column(
             children: [
               Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 12,
+                ),
                 child: Row(
                   children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: AcadenoTheme.heroGradient,
+                      ),
+                      child: Image.asset('assets/logo.png', height: 28),
+                    ),
+                    const SizedBox(width: 12),
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -395,22 +412,20 @@ class _AdminDashboardState extends State<AdminDashboard> {
                 child: _isLoading
                     ? const Center(child: CircularProgressIndicator())
                     : _filteredReports.isEmpty
-                        ? _buildEmptyState(context)
-                        : RefreshIndicator(
-                            onRefresh: _loadReports,
-                            child: ListView(
-                              padding:
-                                  const EdgeInsets.fromLTRB(20, 0, 20, 24),
-                              children: [
-                                _buildFilterCard(context),
-                                const SizedBox(height: 18),
-                                ..._filteredReports.map(
-                                  (report) =>
-                                      _buildReportTile(context, report),
-                                ),
-                              ],
+                    ? _buildEmptyState(context)
+                    : RefreshIndicator(
+                        onRefresh: _loadReports,
+                        child: ListView(
+                          padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+                          children: [
+                            _buildFilterCard(context),
+                            const SizedBox(height: 18),
+                            ..._filteredReports.map(
+                              (report) => _buildReportTile(context, report),
                             ),
-                          ),
+                          ],
+                        ),
+                      ),
               ),
             ],
           ),
@@ -460,8 +475,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
           children: [
             Row(
               children: [
-                Icon(Icons.filter_list_rounded,
-                    color: colorScheme.primary),
+                Icon(Icons.filter_list_rounded, color: colorScheme.primary),
                 const SizedBox(width: 8),
                 Text(
                   'Filters',
@@ -486,10 +500,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
               ),
               items: _workerOptions
                   .map(
-                    (worker) => DropdownMenuItem(
-                      value: worker,
-                      child: Text(worker),
-                    ),
+                    (worker) =>
+                        DropdownMenuItem(value: worker, child: Text(worker)),
                   )
                   .toList(),
               onChanged: (value) {
@@ -533,9 +545,10 @@ class _AdminDashboardState extends State<AdminDashboard> {
   Widget _buildReportTile(BuildContext context, Map<String, dynamic> report) {
     final status = _getStatus(report);
     final date = _formatDate(report['date']);
-    final workerName = report['workerName']?.toString() ?? 
-                      report['name']?.toString() ?? 
-                      'Unknown';
+    final workerName =
+        report['workerName']?.toString() ??
+        report['name']?.toString() ??
+        'Unknown';
     final theme = Theme.of(context);
 
     return Container(
@@ -557,17 +570,11 @@ class _AdminDashboardState extends State<AdminDashboard> {
         contentPadding: const EdgeInsets.all(18),
         title: Text(
           workerName,
-          style: GoogleFonts.poppins(
-            fontSize: 16,
-            fontWeight: FontWeight.w700,
-          ),
+          style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.w700),
         ),
         subtitle: Padding(
           padding: const EdgeInsets.only(top: 6.0),
-          child: Text(
-            'Date: $date',
-            style: GoogleFonts.poppins(fontSize: 13),
-          ),
+          child: Text('Date: $date', style: GoogleFonts.poppins(fontSize: 13)),
         ),
         trailing: Chip(
           label: Text(
@@ -588,4 +595,3 @@ class _AdminDashboardState extends State<AdminDashboard> {
     );
   }
 }
-
