@@ -4,7 +4,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
 import '../services/sheets_api.dart';
 import '../theme/app_theme.dart';
-import 'report_form_screen.dart';
 
 class ReportHistoryScreen extends StatefulWidget {
   const ReportHistoryScreen({super.key});
@@ -194,51 +193,6 @@ class _ReportHistoryScreenState extends State<ReportHistoryScreen> {
     return tasksCompleted;
   }
 
-  bool _canEditReport(Map<String, dynamic> report) {
-    final timestampStr = report['timestamp']?.toString();
-    if (timestampStr == null || timestampStr.isEmpty) {
-      return false; // Can't edit if no timestamp
-    }
-
-    try {
-      final timestamp = DateTime.parse(timestampStr);
-      final now = DateTime.now();
-      final difference = now.difference(timestamp);
-
-      // Check if within 48 hours (2 days)
-      return difference.inHours < 48;
-    } catch (e) {
-      print('Error parsing timestamp: $e');
-      return false;
-    }
-  }
-
-  void _editReport(Map<String, dynamic> report) {
-    if (!_canEditReport(report)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'This report can only be edited within 48 hours of submission.',
-          ),
-          backgroundColor: Colors.orange,
-          duration: Duration(seconds: 3),
-        ),
-      );
-      return;
-    }
-
-    Navigator.of(context)
-        .push(
-          MaterialPageRoute(
-            builder: (context) => ReportFormScreen(reportToEdit: report),
-          ),
-        )
-        .then((_) {
-          // Refresh reports after editing
-          _loadReports();
-        });
-  }
-
   void _showReportDetails(Map<String, dynamic> report) {
     showModalBottomSheet(
       context: context,
@@ -279,23 +233,6 @@ class _ReportHistoryScreenState extends State<ReportHistoryScreen> {
               _buildDetailRow('Date', _formatDate(report['date'])),
               const SizedBox(height: 16),
               _buildDetailRow('Status', _getStatus(report)),
-              if (_canEditReport(report)) ...[
-                const SizedBox(height: 24),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: () {
-                      Navigator.of(context).pop(); // Close detail sheet
-                      _editReport(report);
-                    },
-                    icon: const Icon(Icons.edit),
-                    label: const Text('Edit Report'),
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                    ),
-                  ),
-                ),
-              ],
               const SizedBox(height: 24),
               _buildSectionTitle('Tasks Completed'),
               const SizedBox(height: 8),
@@ -500,7 +437,6 @@ class _ReportHistoryScreenState extends State<ReportHistoryScreen> {
                     final report = _reports[index];
                     final status = _getStatus(report);
                     final tasksPreview = _getTasksPreview(report);
-                    final canEdit = _canEditReport(report);
 
                     return Container(
                       margin: const EdgeInsets.only(bottom: 14),
@@ -521,25 +457,12 @@ class _ReportHistoryScreenState extends State<ReportHistoryScreen> {
                         ),
                         contentPadding: const EdgeInsets.all(20),
                         onTap: () => _showReportDetails(report),
-                        title: Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                _formatDate(report['date']),
-                                style: GoogleFonts.poppins(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 16,
-                                ),
-                              ),
-                            ),
-                            if (canEdit)
-                              IconButton(
-                                icon: const Icon(Icons.edit, size: 20),
-                                color: Theme.of(context).colorScheme.primary,
-                                tooltip: 'Edit report (within 48 hours)',
-                                onPressed: () => _editReport(report),
-                              ),
-                          ],
+                        title: Text(
+                          _formatDate(report['date']),
+                          style: GoogleFonts.poppins(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
                         ),
                         subtitle: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,

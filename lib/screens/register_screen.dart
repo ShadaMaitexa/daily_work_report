@@ -76,9 +76,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     final colorScheme = Theme.of(context).colorScheme;
     return Scaffold(
       body: Container(
-        decoration: const BoxDecoration(
-          gradient: AcadenoTheme.heroGradient,
-        ),
+        decoration: const BoxDecoration(gradient: AcadenoTheme.heroGradient),
         child: SafeArea(
           child: Center(
             child: SingleChildScrollView(
@@ -272,8 +270,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 ),
                               ),
                               style: FilledButton.styleFrom(
-                                padding:
-                                    const EdgeInsets.symmetric(vertical: 16),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 16,
+                                ),
                               ),
                             ),
                             const SizedBox(height: 16),
@@ -281,8 +280,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               onPressed: () {
                                 Navigator.of(context).pushReplacement(
                                   MaterialPageRoute(
-                                    builder: (context) =>
-                                        const LoginScreen(),
+                                    builder: (context) => const LoginScreen(),
                                   ),
                                 );
                               },
@@ -293,7 +291,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 ),
                               ),
                             ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
                   ),
@@ -303,7 +302,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           ),
         ),
       ),
-    ));
+    );
   }
 
   Widget _buildPill(BuildContext context, IconData icon, String label) {
@@ -335,10 +334,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   Widget _buildLabel(String text) {
     return Text(
       text,
-      style: GoogleFonts.poppins(
-        fontSize: 14,
-        fontWeight: FontWeight.w600,
-      ),
+      style: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.w600),
     );
   }
 
@@ -363,10 +359,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         borderRadius: BorderRadius.circular(16),
         borderSide: BorderSide(color: colorScheme.primary, width: 1.4),
       ),
-      contentPadding: const EdgeInsets.symmetric(
-        horizontal: 18,
-        vertical: 18,
-      ),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 18),
     );
   }
 }
