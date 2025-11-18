@@ -368,13 +368,15 @@ class _AdminDashboardState extends State<AdminDashboard> {
                 ),
                 child: Row(
                   children: [
-                    Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        gradient: AcadenoTheme.heroGradient,
+                    ClipOval(
+                      child: SizedBox(
+                        width: 42,
+                        height: 42,
+                        child: Image.asset(
+                          'assets/logo.png',
+                        
+                        ),
                       ),
-                      child: Image.asset('assets/logo.png', height: 28),
                     ),
                     const SizedBox(width: 12),
                     Column(

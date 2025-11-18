@@ -102,12 +102,11 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: Row(
                   children: [
                     ClipOval(
-                      child: Container(
-                        padding: const EdgeInsets.all(6),
-                        color: Colors.white,
+                      child: SizedBox(
+                        width: 44,
+                        height: 44,
                         child: Image.asset(
                           'assets/logo.png',
-                          height: 32,
                           fit: BoxFit.cover,
                         ),
                       ),
