@@ -12,13 +12,14 @@ class AcadenoTheme {
   static const LinearGradient heroGradient = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
-    colors: [Color(0xFF4421A7), primary, Color(0xFF2EBFF8)],
+    colors: [Color(0xFF4C1CC2), primary, Color(0xFF18B6F6), accent],
+    stops: [0.0, 0.45, 0.75, 1.0],
   );
 
   static const LinearGradient auroraGradient = LinearGradient(
     begin: Alignment.topCenter,
     end: Alignment.bottomCenter,
-    colors: [Color(0x1A5C2EDB), Color(0x10FFFFFF)],
+    colors: [Color(0x145C2EDB), Color(0x1118B6F6), Color(0x10FF7A18)],
   );
 
   static ThemeData light() {
