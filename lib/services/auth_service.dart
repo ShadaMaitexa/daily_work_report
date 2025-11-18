@@ -24,6 +24,16 @@ class AuthService {
     return prefs.getString(_workerNameKey);
   }
 
+  Future<void> saveAdminStatus(bool isAdmin) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_isAdminKey, isAdmin);
+  }
+
+  Future<bool> isAdmin() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_isAdminKey) ?? false;
+  }
+
   Future<void> logout() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_workerIdKey);

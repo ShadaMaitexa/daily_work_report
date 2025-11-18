@@ -30,7 +30,9 @@ class StudentRow {
 }
 
 class ReportFormScreen extends StatefulWidget {
-  const ReportFormScreen({super.key});
+  final Map<String, dynamic>? reportToEdit;
+  
+  const ReportFormScreen({super.key, this.reportToEdit});
 
   @override
   State<ReportFormScreen> createState() => _ReportFormScreenState();
@@ -51,8 +53,37 @@ class _ReportFormScreenState extends State<ReportFormScreen> {
   @override
   void initState() {
     super.initState();
-    _addStudentRow();
-    _checkTodaySubmission();
+    if (widget.reportToEdit != null) {
+      // Populate form with existing report data
+      _tasksCompletedController.text = widget.reportToEdit!['completed']?.toString() ?? '';
+      _tasksInProgressController.text = widget.reportToEdit!['inprogress']?.toString() ?? '';
+      _nextStepsController.text = widget.reportToEdit!['nextsteps']?.toString() ?? '';
+      _issuesController.text = widget.reportToEdit!['issues']?.toString() ?? '';
+      
+      // Populate student rows
+      final students = widget.reportToEdit!['students'];
+      if (students is List && students.isNotEmpty) {
+        for (var student in students) {
+          final row = StudentRow(
+            nameController: TextEditingController(text: student['name']?.toString() ?? ''),
+            topicController: TextEditingController(text: student['topic']?.toString() ?? ''),
+            timeController: TextEditingController(text: student['time']?.toString() ?? ''),
+          );
+          _studentRows.add(row);
+        }
+      } else {
+        _addStudentRow();
+      }
+      
+      // Don't check for today's submission if editing
+      setState(() {
+        _isCheckingSubmission = false;
+        _hasSubmittedToday = false;
+      });
+    } else {
+      _addStudentRow();
+      _checkTodaySubmission();
+    }
   }
 
   @override
@@ -113,18 +144,6 @@ class _ReportFormScreenState extends State<ReportFormScreen> {
   }
 
   Future<void> _submitReport() async {
-    if (_hasSubmittedToday) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('You have already submitted today\'s report. Only one submission per day is allowed.'),
-          backgroundColor: Colors.orange,
-          duration: Duration(seconds: 4),
-        ),
-      );
-      return;
-    }
-
     if (!_formKey.currentState!.validate()) {
       return;
     }
@@ -141,23 +160,39 @@ class _ReportFormScreenState extends State<ReportFormScreen> {
       return;
     }
 
-    // Double check before submitting
-    if (await _hasSubmittedTodayCheck(workerId)) {
-      setState(() {
-        _hasSubmittedToday = true;
-      });
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('You have already submitted today\'s report. Only one submission per day is allowed.'),
-          backgroundColor: Colors.orange,
-          duration: Duration(seconds: 4),
-        ),
-      );
-      return;
-    }
-
     final workerName = await _getWorkerName();
+    final isEditing = widget.reportToEdit != null;
+
+    // Only check for today's submission if creating new report
+    if (!isEditing) {
+      if (_hasSubmittedToday) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('You have already submitted today\'s report. Only one submission per day is allowed.'),
+            backgroundColor: Colors.orange,
+            duration: Duration(seconds: 4),
+          ),
+        );
+        return;
+      }
+
+      // Double check before submitting
+      if (await _hasSubmittedTodayCheck(workerId)) {
+        setState(() {
+          _hasSubmittedToday = true;
+        });
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('You have already submitted today\'s report. Only one submission per day is allowed.'),
+            backgroundColor: Colors.orange,
+            duration: Duration(seconds: 4),
+          ),
+        );
+        return;
+      }
+    }
 
     setState(() {
       _isLoading = true;
@@ -177,14 +212,21 @@ class _ReportFormScreenState extends State<ReportFormScreen> {
       'nextsteps': _nextStepsController.text.trim(),
       'issues': _issuesController.text.trim(),
       'students': students,
-      'date': DateTime.now().toIso8601String().split('T').first,
+      'date': isEditing 
+          ? widget.reportToEdit!['date']?.toString() ?? DateTime.now().toIso8601String().split('T').first
+          : DateTime.now().toIso8601String().split('T').first,
       'name': workerName ?? '',
     };
 
-    final result = await SheetsApi.submitReport(
-      workerId: workerId.toString(),
-      data: reportData,
-    );
+    final result = isEditing
+        ? await SheetsApi.updateReport(
+            workerId: workerId.toString(),
+            data: reportData,
+          )
+        : await SheetsApi.submitReport(
+            workerId: workerId.toString(),
+            data: reportData,
+          );
 
     setState(() {
       _isLoading = false;
@@ -192,25 +234,48 @@ class _ReportFormScreenState extends State<ReportFormScreen> {
 
     if (!mounted) return;
 
-    if (result['success'] == true) {
-      setState(() {
-        _hasSubmittedToday = true;
-      });
+    // Check success status - handle both 'success' field and 'status' field
+    final isSuccess = result['success'] == true || 
+                     (result['status']?.toString().toLowerCase() == 'submitted' && 
+                      result['success'] != false);
+    
+    if (isSuccess && result['status']?.toString().toLowerCase() != 'error') {
+      if (!isEditing) {
+        setState(() {
+          _hasSubmittedToday = true;
+        });
+      }
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Report submitted successfully!'),
+        SnackBar(
+          content: Text(isEditing ? 'Report updated successfully!' : 'Report submitted successfully!'),
           backgroundColor: Colors.green,
         ),
       );
       Navigator.of(context).pop();
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(result['message'] ?? 'Failed to submit report'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      // Check if report already exists
+      if (result['alreadyExists'] == true || 
+          result['status']?.toString().toLowerCase() == 'error') {
+        setState(() {
+          _hasSubmittedToday = true;
+        });
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(result['message'] ?? 'A report for this date already exists. Only one submission per day is allowed.'),
+            backgroundColor: Colors.orange,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(result['message'] ?? (isEditing ? 'Failed to update report' : 'Failed to submit report')),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -219,7 +284,7 @@ class _ReportFormScreenState extends State<ReportFormScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          'Submit Today Report',
+          widget.reportToEdit != null ? 'Edit Report' : 'Submit Today Report',
           style: GoogleFonts.poppins(fontWeight: FontWeight.bold),
         ),
       ),
@@ -428,21 +493,21 @@ class _ReportFormScreenState extends State<ReportFormScreen> {
                   );
                 }),
                 const SizedBox(height: 32),
-                ElevatedButton(
-                  onPressed: (_isLoading || _hasSubmittedToday)
-                      ? null
-                      : _submitReport,
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                  ),
-                  child: _isLoading
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Text('Submit Report'),
-                ),
+                          ElevatedButton(
+                            onPressed: (_isLoading || (widget.reportToEdit == null && _hasSubmittedToday))
+                                ? null
+                                : _submitReport,
+                            style: ElevatedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                            ),
+                            child: _isLoading
+                                ? const SizedBox(
+                                    height: 20,
+                                    width: 20,
+                                    child: CircularProgressIndicator(strokeWidth: 2),
+                                  )
+                                : Text(widget.reportToEdit != null ? 'Update Report' : 'Submit Report'),
+                          ),
               ],
             ),
           ),

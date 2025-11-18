@@ -4,6 +4,7 @@ import '../services/auth_service.dart';
 import '../services/sheets_api.dart';
 import 'home_screen.dart';
 import 'register_screen.dart';
+import 'admin_dashboard.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -19,6 +20,10 @@ class _LoginScreenState extends State<LoginScreen> {
   final _passwordController = TextEditingController();
   bool _isLoading = false;
   bool _obscurePassword = true;
+  
+  // Admin credentials
+  static const String _adminEmail = 'acadeno@gmail.com';
+  static const String _adminPassword = 'acadeno123';
 
   @override
   void dispose() {
@@ -54,6 +59,23 @@ class _LoginScreenState extends State<LoginScreen> {
         return;
       }
       
+      // Check for admin credentials first
+      if (email == _adminEmail && password == _adminPassword) {
+        setState(() {
+          _isLoading = false;
+        });
+        if (!mounted) return;
+        
+        // Clear worker data and save admin status
+        await _authService.logout(); // Clear any existing worker data
+        await _authService.saveAdminStatus(true);
+        
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (context) => const AdminDashboard()),
+        );
+        return;
+      }
+      
       print('Attempting login with email: $email (length: ${email.length})');
       
       final result = await SheetsApi.loginWorker(
@@ -84,6 +106,10 @@ class _LoginScreenState extends State<LoginScreen> {
       print('Login success: $isSuccess, workerId: $workerIdValue');
 
       if (isSuccess && workerIdValue != null) {
+        // Clear admin status and save worker data
+        await _authService.logout(); // Clear any existing admin data
+        await _authService.saveAdminStatus(false); // Explicitly set admin to false
+        
         final workerId = int.tryParse(workerIdValue.toString());
         if (workerId != null) {
           await _authService.saveWorkerId(workerId);

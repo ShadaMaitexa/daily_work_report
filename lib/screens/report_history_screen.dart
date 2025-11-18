@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
 import '../services/sheets_api.dart';
+import 'report_form_screen.dart';
 
 class ReportHistoryScreen extends StatefulWidget {
   const ReportHistoryScreen({super.key});
@@ -104,50 +105,65 @@ class _ReportHistoryScreenState extends State<ReportHistoryScreen> {
     if (dateValue == null) return 'N/A';
     
     try {
-      DateTime dateTime;
       final dateStr = dateValue.toString().trim();
       
-      // Try parsing ISO format (2025-11-17T18:30:00.000Z)
-      if (dateStr.contains('T')) {
-        dateTime = DateTime.parse(dateStr);
-      }
-      // Try parsing simple date format (2025-11-17)
-      else if (dateStr.contains('-') && dateStr.length >= 10) {
-        dateTime = DateTime.parse(dateStr.split(' ').first);
-      }
-      // Try parsing as timestamp
-      else {
-        final timestamp = int.tryParse(dateStr);
-        if (timestamp != null) {
-          // Check if it's milliseconds or seconds
-          dateTime = timestamp > 1000000000000
-              ? DateTime.fromMillisecondsSinceEpoch(timestamp)
-              : DateTime.fromMillisecondsSinceEpoch(timestamp * 1000);
-        } else {
-          return dateStr; // Return as-is if can't parse
-        }
-      }
-      
-      // Format as "17 November 2025" or "17 Nov 2025"
-      return DateFormat('d MMMM yyyy').format(dateTime);
-    } catch (e) {
-      // If parsing fails, try to extract just the date part
-      final dateStr = dateValue.toString();
+      // Extract date parts from string (handles "2025-11-17" format)
       if (dateStr.contains('-')) {
         final parts = dateStr.split('-');
         if (parts.length >= 3) {
           try {
-            final year = int.parse(parts[0]);
-            final month = int.parse(parts[1]);
-            final day = int.parse(parts[2].split('T').first.split(' ').first);
-            final dateTime = DateTime(year, month, day);
-            return DateFormat('d MMMM yyyy').format(dateTime);
-          } catch (_) {
-            return dateStr;
+            // Extract just the date part (YYYY-MM-DD) before any time or other data
+            final dateOnly = parts[0] + '-' + parts[1] + '-' + parts[2].split('T').first.split(' ').first;
+            final dateParts = dateOnly.split('-');
+            
+            if (dateParts.length == 3) {
+              final year = int.parse(dateParts[0]);
+              final month = int.parse(dateParts[1]);
+              final day = int.parse(dateParts[2]);
+              
+              // Create DateTime in local timezone (not UTC) to avoid day shift
+              final dateTime = DateTime(year, month, day);
+              
+              // Format as "17 November 2025"
+              return DateFormat('d MMMM yyyy').format(dateTime);
+            }
+          } catch (e) {
+            print('Error parsing date parts: $e');
           }
         }
       }
+      
+      // Try parsing ISO format with timezone (2025-11-17T18:30:00.000Z)
+      if (dateStr.contains('T')) {
+        try {
+          final parsed = DateTime.parse(dateStr);
+          // Use the date components directly to avoid timezone issues
+          return DateFormat('d MMMM yyyy').format(DateTime(parsed.year, parsed.month, parsed.day));
+        } catch (e) {
+          print('Error parsing ISO date: $e');
+        }
+      }
+      
+      // Try parsing as timestamp
+      final timestamp = int.tryParse(dateStr);
+      if (timestamp != null) {
+        try {
+          // Check if it's milliseconds or seconds
+          final dateTime = timestamp > 1000000000000
+              ? DateTime.fromMillisecondsSinceEpoch(timestamp)
+              : DateTime.fromMillisecondsSinceEpoch(timestamp * 1000);
+          // Use date components to avoid timezone shift
+          return DateFormat('d MMMM yyyy').format(DateTime(dateTime.year, dateTime.month, dateTime.day));
+        } catch (e) {
+          print('Error parsing timestamp: $e');
+        }
+      }
+      
+      // Fallback: return as-is
       return dateStr;
+    } catch (e) {
+      print('Error in _formatDate: $e, value: $dateValue');
+      return dateValue.toString();
     }
   }
 
@@ -162,6 +178,49 @@ class _ReportHistoryScreenState extends State<ReportHistoryScreen> {
       return '${tasksCompleted.substring(0, 50)}...';
     }
     return tasksCompleted;
+  }
+
+  bool _canEditReport(Map<String, dynamic> report) {
+    final timestampStr = report['timestamp']?.toString();
+    if (timestampStr == null || timestampStr.isEmpty) {
+      return false; // Can't edit if no timestamp
+    }
+
+    try {
+      final timestamp = DateTime.parse(timestampStr);
+      final now = DateTime.now();
+      final difference = now.difference(timestamp);
+      
+      // Check if within 48 hours (2 days)
+      return difference.inHours < 48;
+    } catch (e) {
+      print('Error parsing timestamp: $e');
+      return false;
+    }
+  }
+
+  void _editReport(Map<String, dynamic> report) {
+    if (!_canEditReport(report)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('This report can only be edited within 48 hours of submission.'),
+          backgroundColor: Colors.orange,
+          duration: Duration(seconds: 3),
+        ),
+      );
+      return;
+    }
+
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => ReportFormScreen(
+          reportToEdit: report,
+        ),
+      ),
+    ).then((_) {
+      // Refresh reports after editing
+      _loadReports();
+    });
   }
 
   void _showReportDetails(Map<String, dynamic> report) {
@@ -207,6 +266,23 @@ class _ReportHistoryScreenState extends State<ReportHistoryScreen> {
                 'Status',
                 _getStatus(report),
               ),
+              if (_canEditReport(report)) ...[
+                const SizedBox(height: 24),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.of(context).pop(); // Close detail sheet
+                      _editReport(report);
+                    },
+                    icon: const Icon(Icons.edit),
+                    label: const Text('Edit Report'),
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                  ),
+                ),
+              ],
               const SizedBox(height: 24),
               _buildSectionTitle('Tasks Completed'),
               const SizedBox(height: 8),
@@ -403,17 +479,32 @@ class _ReportHistoryScreenState extends State<ReportHistoryScreen> {
                       final status = _getStatus(report);
                       final tasksPreview = _getTasksPreview(report);
 
+                      final canEdit = _canEditReport(report);
+                      
                       return Card(
                         margin: const EdgeInsets.only(bottom: 12),
                         child: ListTile(
                           contentPadding: const EdgeInsets.all(16),
                           onTap: () => _showReportDetails(report),
-                          title: Text(
-                            _formatDate(report['date']),
-                            style: GoogleFonts.poppins(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                            ),
+                          title: Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  _formatDate(report['date']),
+                                  style: GoogleFonts.poppins(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                  ),
+                                ),
+                              ),
+                              if (canEdit)
+                                IconButton(
+                                  icon: const Icon(Icons.edit, size: 20),
+                                  color: Colors.blue,
+                                  tooltip: 'Edit report (within 48 hours)',
+                                  onPressed: () => _editReport(report),
+                                ),
+                            ],
                           ),
                           subtitle: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,

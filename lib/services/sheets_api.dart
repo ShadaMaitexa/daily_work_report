@@ -40,11 +40,16 @@ class SheetsApi {
               // Check for status field
               if (decoded.containsKey('status')) {
                 final status = decoded['status']?.toString().toLowerCase();
-                decoded['success'] =
-                    status == 'success' ||
-                    status == 'submitted' ||
-                    status == 'logged in' ||
-                    status == 'login successful';
+                // If status is 'error', success should be false
+                if (status == 'error') {
+                  decoded['success'] = false;
+                } else {
+                  decoded['success'] =
+                      status == 'success' ||
+                      status == 'submitted' ||
+                      status == 'logged in' ||
+                      status == 'login successful';
+                }
               }
               // Check if workerId exists (indicates successful login)
               else if (decoded.containsKey('workerId') ||
@@ -254,6 +259,16 @@ class SheetsApi {
     );
   }
 
+  static Future<Map<String, dynamic>> updateReport({
+    required String workerId,
+    required Map<String, dynamic> data,
+  }) {
+    return _postAction(
+      action: 'updateReport',
+      data: {'workerId': workerId, ...data},
+    );
+  }
+
   static Future<Map<String, dynamic>> getWorkerReports({
     required String workerId,
   }) async {
@@ -299,9 +314,23 @@ class SheetsApi {
     return response;
   }
 
-  static Future<Map<String, dynamic>> getAllReports() {
+  static Future<Map<String, dynamic>> getAllReports() async {
     // Use POST directly since Google Apps Script only has doPost function
-    return _postAction(action: 'getAllReports', data: {});
+    final response = await _postAction(action: 'getAllReports', data: {});
+
+    print('getAllReports response: $response');
+
+    if (response['success'] == true) {
+      final raw = response['reports'] ?? response['data'];
+      if (raw != null) {
+        // Normalize reports if needed
+        if (raw is List) {
+          return {'success': true, 'reports': raw};
+        }
+      }
+    }
+
+    return response;
   }
 
   static Future<Map<String, dynamic>> checkTodayStatus({
@@ -312,10 +341,19 @@ class SheetsApi {
       final reports =
           (reportsResponse['reports'] as List<Map<String, dynamic>>?) ?? [];
       final today = DateTime.now().toIso8601String().split('T').first;
-      final entry = reports.cast<Map<String, dynamic>?>().firstWhere(
-        (r) => r?['date'] == today,
-        orElse: () => null,
-      );
+
+      // Find report for today - normalize dates for comparison
+      Map<String, dynamic>? entry;
+      for (var report in reports) {
+        final reportDate = report['date']?.toString() ?? '';
+        // Normalize date (extract just YYYY-MM-DD part)
+        final normalizedReportDate = reportDate.split('T')[0].split(' ')[0];
+        if (normalizedReportDate == today) {
+          entry = report;
+          break;
+        }
+      }
+
       final status = entry == null
           ? 'leave'
           : (entry['status']?.toString() ?? 'leave');
@@ -390,6 +428,7 @@ class SheetsApi {
                 'students': _decodeStudents(
                   data['students'] ?? data['Students'] ?? map['students'],
                 ),
+                'timestamp': map['timestamp'] ?? data['timestamp'] ?? '',
               };
 
               print('Normalized report: $normalized');

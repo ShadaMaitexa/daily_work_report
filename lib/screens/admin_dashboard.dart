@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:intl/intl.dart';
 import '../services/auth_service.dart';
 import '../services/sheets_api.dart';
 import 'login_screen.dart';
@@ -41,8 +42,13 @@ class _AdminDashboardState extends State<AdminDashboard> {
       final reports = List<Map<String, dynamic>>.from(result['reports']);
       final workers = <String>{};
       for (final report in reports) {
-        final workerName = report['workerName']?.toString() ?? 'Unknown';
-        workers.add(workerName);
+        // Try multiple field names for worker name
+        final workerName = report['workerName']?.toString() ?? 
+                         report['name']?.toString() ?? 
+                         'Unknown';
+        if (workerName.isNotEmpty && workerName != 'Unknown') {
+          workers.add(workerName);
+        }
       }
 
       setState(() {
@@ -50,6 +56,12 @@ class _AdminDashboardState extends State<AdminDashboard> {
         _workerOptions = ['All Workers', ...workers.toList()..sort()];
       });
       _applyFilters();
+    } else {
+      print('Failed to load reports: ${result['message']}');
+      setState(() {
+        _allReports = [];
+        _filteredReports = [];
+      });
     }
   }
 
@@ -57,19 +69,23 @@ class _AdminDashboardState extends State<AdminDashboard> {
     List<Map<String, dynamic>> filtered = List.from(_allReports);
 
     if (_selectedWorker != 'All Workers') {
-      filtered = filtered
-          .where((report) =>
-              (report['workerName'] ?? '').toString() == _selectedWorker)
-          .toList();
+      filtered = filtered.where((report) {
+        final workerName = report['workerName']?.toString() ?? 
+                          report['name']?.toString() ?? 
+                          '';
+        return workerName == _selectedWorker;
+      }).toList();
     }
 
     if (_selectedDate != null) {
       final selectedDateString =
           '${_selectedDate!.year.toString().padLeft(4, '0')}-${_selectedDate!.month.toString().padLeft(2, '0')}-${_selectedDate!.day.toString().padLeft(2, '0')}';
-      filtered = filtered
-          .where((report) => (report['date'] ?? '').toString() ==
-              selectedDateString)
-          .toList();
+      filtered = filtered.where((report) {
+        final reportDate = report['date']?.toString() ?? '';
+        // Normalize date for comparison (extract YYYY-MM-DD part)
+        final normalizedReportDate = reportDate.split('T')[0].split(' ')[0];
+        return normalizedReportDate == selectedDateString;
+      }).toList();
     }
 
     setState(() {
@@ -102,18 +118,60 @@ class _AdminDashboardState extends State<AdminDashboard> {
   }
 
   String _getStatus(Map<String, dynamic> report) {
-    final hasData =
-        report['tasksCompleted'] != null && report['tasksCompleted'].toString().isNotEmpty;
+    // Check multiple field names for tasks completed
+    final hasData = (report['tasksCompleted']?.toString().isNotEmpty ?? false) ||
+                   (report['completed']?.toString().isNotEmpty ?? false);
     return hasData ? 'Present' : 'Leave';
   }
 
-  String _formatDate(String? date) {
-    if (date == null || date.isEmpty) return 'N/A';
+  String _formatDate(dynamic dateValue) {
+    if (dateValue == null) return 'N/A';
+    
     try {
-      final parsed = DateTime.parse(date);
-      return '${parsed.day.toString().padLeft(2, '0')}/${parsed.month.toString().padLeft(2, '0')}/${parsed.year}';
-    } catch (_) {
-      return date;
+      final dateStr = dateValue.toString().trim();
+      
+      // Extract date parts from string (handles "2025-11-17" format)
+      if (dateStr.contains('-')) {
+        final parts = dateStr.split('-');
+        if (parts.length >= 3) {
+          try {
+            // Extract just the date part (YYYY-MM-DD) before any time or other data
+            final dateOnly = parts[0] + '-' + parts[1] + '-' + parts[2].split('T').first.split(' ').first;
+            final dateParts = dateOnly.split('-');
+            
+            if (dateParts.length == 3) {
+              final year = int.parse(dateParts[0]);
+              final month = int.parse(dateParts[1]);
+              final day = int.parse(dateParts[2]);
+              
+              // Create DateTime in local timezone (not UTC) to avoid day shift
+              final dateTime = DateTime(year, month, day);
+              
+              // Format as "17 November 2025"
+              return DateFormat('d MMMM yyyy').format(dateTime);
+            }
+          } catch (e) {
+            print('Error parsing date parts: $e');
+          }
+        }
+      }
+      
+      // Try parsing ISO format with timezone (2025-11-17T18:30:00.000Z)
+      if (dateStr.contains('T')) {
+        try {
+          final parsed = DateTime.parse(dateStr);
+          // Use the date components directly to avoid timezone issues
+          return DateFormat('d MMMM yyyy').format(DateTime(parsed.year, parsed.month, parsed.day));
+        } catch (e) {
+          print('Error parsing ISO date: $e');
+        }
+      }
+      
+      // Fallback: return as-is
+      return dateStr;
+    } catch (e) {
+      print('Error in _formatDate: $e, value: $dateValue');
+      return dateValue.toString();
     }
   }
 
@@ -154,17 +212,19 @@ class _AdminDashboardState extends State<AdminDashboard> {
                 ),
               ),
               const SizedBox(height: 24),
-              _buildDetailRow('Worker', report['workerName'] ?? 'Unknown'),
+              _buildDetailRow('Worker', report['workerName']?.toString() ?? 
+                                        report['name']?.toString() ?? 
+                                        'Unknown'),
               const SizedBox(height: 12),
-              _buildDetailRow('Date', _formatDate(report['date']?.toString())),
+              _buildDetailRow('Date', _formatDate(report['date'])),
               const SizedBox(height: 12),
               _buildDetailRow('Status', _getStatus(report)),
               const SizedBox(height: 24),
-              _buildSection('Tasks Completed', report['tasksCompleted']),
+              _buildSection('Tasks Completed', report['tasksCompleted'] ?? report['completed']),
               const SizedBox(height: 16),
-              _buildSection('Tasks In Progress', report['tasksInProgress']),
+              _buildSection('Tasks In Progress', report['tasksInProgress'] ?? report['inprogress']),
               const SizedBox(height: 16),
-              _buildSection('Next Steps', report['nextSteps']),
+              _buildSection('Next Steps', report['nextSteps'] ?? report['nextsteps']),
               const SizedBox(height: 16),
               _buildSection('Issues', report['issues']),
               if (report['students'] != null &&
@@ -472,8 +532,10 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
   Widget _buildReportTile(BuildContext context, Map<String, dynamic> report) {
     final status = _getStatus(report);
-    final date = _formatDate(report['date']?.toString());
-    final workerName = report['workerName']?.toString() ?? 'Unknown';
+    final date = _formatDate(report['date']);
+    final workerName = report['workerName']?.toString() ?? 
+                      report['name']?.toString() ?? 
+                      'Unknown';
     final theme = Theme.of(context);
 
     return Container(
