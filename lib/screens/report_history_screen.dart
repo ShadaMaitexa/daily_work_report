@@ -332,16 +332,15 @@ class _ReportHistoryScreenState extends State<ReportHistoryScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        backgroundColor: Colors.white,
         title: Text(
           'Report History',
           style: GoogleFonts.poppins(
             fontWeight: FontWeight.bold,
-            color: Colors.white,
+            color: Theme.of(context).colorScheme.onSurface,
           ),
         ),
-        flexibleSpace: Container(
-          decoration: const BoxDecoration(gradient: AcadenoTheme.heroGradient),
-        ),
+        elevation: 0,
       ),
       body: Container(
         decoration: const BoxDecoration(gradient: AcadenoTheme.auroraGradient),

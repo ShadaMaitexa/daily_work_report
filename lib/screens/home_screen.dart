@@ -15,6 +15,17 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  static const _heroCardGradient = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [
+      Color(0xFF7E67F5),
+      Color(0xFF6F96FF),
+      Color(0xFF4DD4FF),
+      Color(0xFFFFB982),
+    ],
+    stops: [0.0, 0.45, 0.75, 1.0],
+  );
   final _authService = AuthService();
   int? _workerId;
   String? _workerName;
@@ -90,37 +101,49 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 child: Row(
                   children: [
-                    Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        gradient: AcadenoTheme.heroGradient,
+                    ClipOval(
+                      child: Container(
+                        padding: const EdgeInsets.all(6),
+                        color: Colors.white,
+                        child: Image.asset(
+                          'assets/logo.png',
+                          height: 32,
+                          fit: BoxFit.cover,
+                        ),
                       ),
-                      child: Image.asset('assets/logo.png', height: 32),
                     ),
                     const SizedBox(width: 14),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Acadeno Workspace',
-                          style: GoogleFonts.poppins(
-                            fontSize: 22,
-                            fontWeight: FontWeight.w700,
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            'Acadeno Workspace',
+                            style: GoogleFonts.poppins(
+                              fontSize: 22,
+                              fontWeight: FontWeight.w700,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
-                        ),
-                        Text(
-                          'Where AI builds your career momentum',
-                          style: GoogleFonts.poppins(
-                            fontSize: 13,
-                            color: colorScheme.onSurfaceVariant,
+                          Text(
+                            'Where AI builds your career',
+                            style: GoogleFonts.poppins(
+                              fontSize: 13,
+                              color: colorScheme.onSurfaceVariant,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                    const Spacer(),
                     IconButton(
-                      icon: const Icon(Icons.logout_rounded),
+                      icon: Icon(
+                        Icons.logout_rounded,
+                        color: colorScheme.primary,
+                      ),
                       tooltip: 'Logout',
                       onPressed: _logout,
                     ),
@@ -154,12 +177,12 @@ class _HomeScreenState extends State<HomeScreen> {
     return Container(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(28),
-        gradient: AcadenoTheme.heroGradient,
+        gradient: _heroCardGradient,
         boxShadow: [
           BoxShadow(
-            color: theme.colorScheme.primary.withOpacity(0.25),
-            blurRadius: 20,
-            offset: const Offset(0, 12),
+            color: theme.colorScheme.primary.withOpacity(0.18),
+            blurRadius: 24,
+            offset: const Offset(0, 14),
           ),
         ],
       ),
@@ -278,45 +301,65 @@ class _HomeScreenState extends State<HomeScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(Icons.bolt_rounded, color: theme.colorScheme.primary),
-                const SizedBox(width: 8),
-                Text(
-                  "Today's Status",
-                  style: GoogleFonts.poppins(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
+                Expanded(
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.bolt_rounded,
+                        color: theme.colorScheme.primary,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          "Today's Status",
+                          style: GoogleFonts.poppins(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                const Spacer(),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 6,
-                  ),
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.primary.withOpacity(0.12),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: _isStatusLoading
-                      ? Row(
-                          children: const [
-                            SizedBox(
-                              height: 16,
-                              width: 16,
-                              child: CircularProgressIndicator(strokeWidth: 2),
+                const SizedBox(width: 8),
+                Flexible(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.primary.withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: _isStatusLoading
+                        ? Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: const [
+                              SizedBox(
+                                height: 16,
+                                width: 16,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              ),
+                              SizedBox(width: 6),
+                              Text('Updating…'),
+                            ],
+                          )
+                        : Text(
+                            _statusMessage,
+                            style: GoogleFonts.poppins(
+                              fontWeight: FontWeight.w600,
+                              color: theme.colorScheme.primary,
                             ),
-                            SizedBox(width: 6),
-                            Text('Updating…'),
-                          ],
-                        )
-                      : Text(
-                          _statusMessage,
-                          style: GoogleFonts.poppins(
-                            fontWeight: FontWeight.w600,
-                            color: theme.colorScheme.primary,
+                            overflow: TextOverflow.ellipsis,
                           ),
-                        ),
+                  ),
                 ),
               ],
             ),
@@ -324,7 +367,7 @@ class _HomeScreenState extends State<HomeScreen> {
             Text(
               _isStatusLoading
                   ? 'Fetching latest activity...'
-                  : _statusMessage == 'Report Submitted'
+                  : _statusMessage == 'Submitted'
                   ? 'Great job staying consistent today!'
                   : 'No report yet. Tap Submit to mark attendance.',
               style: GoogleFonts.poppins(

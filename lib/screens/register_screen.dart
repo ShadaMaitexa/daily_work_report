@@ -83,235 +83,177 @@ class _RegisterScreenState extends State<RegisterScreen> {
               key: _formKey,
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 480),
-                child: Card(
-                  elevation: 16,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(32),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 32,
-                      vertical: 40,
-                    ),
-                    child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            Container(
-                              decoration: BoxDecoration(
-                                gradient: AcadenoTheme.heroGradient,
-                                borderRadius: BorderRadius.circular(40),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: colorScheme.primary.withOpacity(0.2),
-                                    blurRadius: 28,
-                                    offset: const Offset(0, 18),
-                                  ),
-                                ],
-                              ),
-                              padding: const EdgeInsets.all(4),
-                              child: Container(
-                                padding: const EdgeInsets.all(24),
-                                decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  borderRadius: BorderRadius.circular(36),
-                                ),
-                                child: Image.asset(
-                                  'assets/logo.png',
-                                  height: 62,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 20),
-                            Text(
-                              'Join Acadeno Workforce',
-                              textAlign: TextAlign.center,
-                              style: GoogleFonts.poppins(
-                                fontSize: 24,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              'Let’s get you started with data-rich daily reports.',
-                              textAlign: TextAlign.center,
-                              style: GoogleFonts.poppins(
-                                color: colorScheme.onSurfaceVariant,
-                                fontSize: 14,
-                              ),
-                            ),
-                            const SizedBox(height: 24),
-                            Container(
-                              padding: const EdgeInsets.all(18),
-                              decoration: BoxDecoration(
-                                gradient: AcadenoTheme.heroGradient,
-                                borderRadius: BorderRadius.circular(24),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: colorScheme.primary.withOpacity(
-                                      0.18,
-                                    ),
-                                    blurRadius: 20,
-                                    offset: const Offset(0, 14),
-                                  ),
-                                ],
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Why register?',
-                                    style: GoogleFonts.poppins(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.w700,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 6),
-                                  Text(
-                                    'Unlock guided submissions, AI summaries and a sleek admin handoff with every daily report.',
-                                    style: GoogleFonts.poppins(
-                                      fontSize: 13,
-                                      color: Colors.white.withOpacity(0.9),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(height: 28),
-                            _buildLabel('Worker Name'),
-                            const SizedBox(height: 8),
-                            TextFormField(
-                              controller: _nameController,
-                              decoration: _fieldDecoration(
-                                context,
-                                hint: 'Alex Mathew',
-                                icon: Icons.badge_outlined,
-                              ),
-                              validator: (value) {
-                                if (value == null || value.isEmpty) {
-                                  return 'Please enter your name';
-                                }
-                                return null;
-                              },
-                            ),
-                            const SizedBox(height: 18),
-                            _buildLabel('Email'),
-                            const SizedBox(height: 8),
-                            TextFormField(
-                              controller: _emailController,
-                              decoration: _fieldDecoration(
-                                context,
-                                hint: 'alex@email.com',
-                                icon: Icons.mail_outline,
-                              ),
-                              keyboardType: TextInputType.emailAddress,
-                              validator: (value) {
-                                if (value == null || value.isEmpty) {
-                                  return 'Please enter your email';
-                                }
-                                if (!value.contains('@')) {
-                                  return 'Please enter a valid email';
-                                }
-                                return null;
-                              },
-                            ),
-                            const SizedBox(height: 18),
-                            _buildLabel('Phone'),
-                            const SizedBox(height: 8),
-                            TextFormField(
-                              controller: _phoneController,
-                              decoration: _fieldDecoration(
-                                context,
-                                hint: '+1 555 0100',
-                                icon: Icons.phone_outlined,
-                              ),
-                              keyboardType: TextInputType.phone,
-                              validator: (value) {
-                                if (value == null || value.isEmpty) {
-                                  return 'Please enter your phone number';
-                                }
-                                return null;
-                              },
-                            ),
-                            const SizedBox(height: 18),
-                            _buildLabel('Password'),
-                            const SizedBox(height: 8),
-                            TextFormField(
-                              controller: _passwordController,
-                              decoration: _fieldDecoration(
-                                context,
-                                hint: 'Minimum 6 characters',
-                                icon: Icons.lock_outline,
-                                suffix: IconButton(
-                                  icon: Icon(
-                                    _obscurePassword
-                                        ? Icons.visibility_rounded
-                                        : Icons.visibility_off_rounded,
-                                  ),
-                                  onPressed: () {
-                                    setState(() {
-                                      _obscurePassword = !_obscurePassword;
-                                    });
-                                  },
-                                ),
-                              ),
-                              obscureText: _obscurePassword,
-                              validator: (value) {
-                                if (value == null || value.isEmpty) {
-                                  return 'Please enter a password';
-                                }
-                                if (value.length < 6) {
-                                  return 'Password must be at least 6 characters';
-                                }
-                                return null;
-                              },
-                            ),
-                            const SizedBox(height: 32),
-                            FilledButton.icon(
-                              onPressed: _isLoading ? null : _register,
-                              icon: _isLoading
-                                  ? const SizedBox(
-                                      height: 18,
-                                      width: 18,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                        color: Colors.white,
-                                      ),
-                                    )
-                                  : const Icon(Icons.arrow_forward_rounded),
-                              label: Text(
-                                _isLoading ? 'Creating...' : 'Create Account',
-                                style: GoogleFonts.poppins(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                              style: FilledButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 16,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 16),
-                            TextButton(
-                              onPressed: () {
-                                Navigator.of(context).pushReplacement(
-                                  MaterialPageRoute(
-                                    builder: (context) => const LoginScreen(),
-                                  ),
-                                );
-                              },
-                              child: Text(
-                                'Already registered? Sign in',
-                                style: GoogleFonts.poppins(
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ),
-                          ],
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Container(
+                      decoration: BoxDecoration(
+                        gradient: AcadenoTheme.heroGradient,
+                        borderRadius: BorderRadius.circular(40),
+                        boxShadow: [
+                          BoxShadow(
+                            color: colorScheme.primary.withOpacity(0.2),
+                            blurRadius: 28,
+                            offset: const Offset(0, 18),
+                          ),
+                        ],
+                      ),
+                      padding: const EdgeInsets.all(4),
+                      child: Container(
+                        padding: const EdgeInsets.all(24),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(36),
                         ),
+                        child: Image.asset('assets/logo.png', height: 62),
                       ),
                     ),
-                  ),
+                    const SizedBox(height: 20),
+                    Text(
+                      'Join Acadeno Workforce',
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.poppins(
+                        fontSize: 24,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Let’s get you started with data-rich daily reports.',
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.poppins(
+                        color: colorScheme.onSurfaceVariant,
+                        fontSize: 14,
+                      ),
+                    ),
+                    const SizedBox(height: 28),
+                    _buildLabel('Worker Name'),
+                    const SizedBox(height: 8),
+                    TextFormField(
+                      controller: _nameController,
+                      decoration: _fieldDecoration(
+                        context,
+                        hint: 'Alex Mathew',
+                        icon: Icons.badge_outlined,
+                      ),
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Please enter your name';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 18),
+                    _buildLabel('Email'),
+                    const SizedBox(height: 8),
+                    TextFormField(
+                      controller: _emailController,
+                      decoration: _fieldDecoration(
+                        context,
+                        hint: 'alex@email.com',
+                        icon: Icons.mail_outline,
+                      ),
+                      keyboardType: TextInputType.emailAddress,
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Please enter your email';
+                        }
+                        if (!value.contains('@')) {
+                          return 'Please enter a valid email';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 18),
+                    _buildLabel('Phone'),
+                    const SizedBox(height: 8),
+                    TextFormField(
+                      controller: _phoneController,
+                      decoration: _fieldDecoration(
+                        context,
+                        hint: '+1 555 0100',
+                        icon: Icons.phone_outlined,
+                      ),
+                      keyboardType: TextInputType.phone,
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Please enter your phone number';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 18),
+                    _buildLabel('Password'),
+                    const SizedBox(height: 8),
+                    TextFormField(
+                      controller: _passwordController,
+                      decoration: _fieldDecoration(
+                        context,
+                        hint: 'Minimum 6 characters',
+                        icon: Icons.lock_outline,
+                        suffix: IconButton(
+                          icon: Icon(
+                            _obscurePassword
+                                ? Icons.visibility_rounded
+                                : Icons.visibility_off_rounded,
+                          ),
+                          onPressed: () {
+                            setState(() {
+                              _obscurePassword = !_obscurePassword;
+                            });
+                          },
+                        ),
+                      ),
+                      obscureText: _obscurePassword,
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Please enter a password';
+                        }
+                        if (value.length < 6) {
+                          return 'Password must be at least 6 characters';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 32),
+                    FilledButton.icon(
+                      onPressed: _isLoading ? null : _register,
+                      icon: _isLoading
+                          ? const SizedBox(
+                              height: 18,
+                              width: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : const Icon(Icons.arrow_forward_rounded),
+                      label: Text(
+                        _isLoading ? 'Creating...' : 'Create Account',
+                        style: GoogleFonts.poppins(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      style: FilledButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    TextButton(
+                      onPressed: () {
+                        Navigator.of(context).pushReplacement(
+                          MaterialPageRoute(
+                            builder: (context) => const LoginScreen(),
+                          ),
+                        );
+                      },
+                      child: Text(
+                        'Already registered? Sign in',
+                        style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),

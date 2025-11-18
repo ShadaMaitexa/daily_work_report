@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class AcadenoTheme {
-  static const Color primary = Color(0xFF5C2EDB);
-  static const Color primaryDark = Color(0xFF4823A7);
+  static const Color primary = Color.fromARGB(255, 176, 149, 250);
+  static const Color primaryDark = Color.fromARGB(255, 184, 166, 231);
   static const Color secondary = Color(0xFF18B6F6);
   static const Color accent = Color(0xFFFF7A18);
   static const Color midnight = Color(0xFF0E1024);
@@ -12,14 +12,19 @@ class AcadenoTheme {
   static const LinearGradient heroGradient = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
-    colors: [Color(0xFF4C1CC2), primary, Color(0xFF18B6F6), accent],
-    stops: [0.0, 0.45, 0.75, 1.0],
+    colors: [
+      Color(0xFF8B82FF),
+      Color(0xFF6FB5FF),
+      Color(0xFF57E1FF),
+      Color(0xFFFFCFA2),
+    ],
+    stops: [0.0, 0.4, 0.7, 1.0],
   );
 
   static const LinearGradient auroraGradient = LinearGradient(
     begin: Alignment.topCenter,
     end: Alignment.bottomCenter,
-    colors: [Color(0x145C2EDB), Color(0x1118B6F6), Color(0x10FF7A18)],
+    colors: [Color(0x1A8B82FF), Color(0x116FB5FF), Color(0x10FFCFA2)],
   );
 
   static ThemeData light() {
@@ -30,10 +35,15 @@ class AcadenoTheme {
       textTheme: GoogleFonts.poppinsTextTheme(),
       colorScheme: ColorScheme(
         brightness: Brightness.light,
-        primary: primary,
+        primary: const Color.fromARGB(255, 164, 134, 248),
         onPrimary: Colors.white,
-        primaryContainer: primary.withOpacity(0.15),
-        onPrimaryContainer: primaryDark,
+        primaryContainer: const Color.fromARGB(
+          255,
+          156,
+          124,
+          245,
+        ).withOpacity(0.15),
+        onPrimaryContainer: const Color.fromARGB(255, 132, 93, 231),
         secondary: secondary,
         onSecondary: Colors.white,
         secondaryContainer: secondary.withOpacity(0.16),

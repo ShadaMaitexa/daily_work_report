@@ -185,227 +185,139 @@ class _LoginScreenState extends State<LoginScreen> {
               key: _formKey,
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 420),
-                child: Card(
-                  elevation: 18,
-                  shadowColor: Colors.black.withOpacity(0.12),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(32),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 32,
-                      vertical: 40,
-                    ),
-                    child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            Container(
-                              decoration: BoxDecoration(
-                                gradient: AcadenoTheme.heroGradient,
-                                borderRadius: BorderRadius.circular(40),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: colorScheme.primary.withOpacity(
-                                      0.25,
-                                    ),
-                                    blurRadius: 30,
-                                    offset: const Offset(0, 20),
-                                  ),
-                                ],
-                              ),
-                              padding: const EdgeInsets.all(4),
-                              child: Container(
-                                padding: const EdgeInsets.all(28),
-                                decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  borderRadius: BorderRadius.circular(36),
-                                ),
-                                child: Image.asset(
-                                  'assets/logo.png',
-                                  height: 72,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 24),
-                            Text(
-                              'ACADENO',
-                              style: GoogleFonts.poppins(
-                                fontSize: 28,
-                                fontWeight: FontWeight.w800,
-                                letterSpacing: 4,
-                                color: colorScheme.primary,
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
-                            const SizedBox(height: 6),
-                            Text(
-                              'Where AI Builds Careers',
-                              textAlign: TextAlign.center,
-                              style: GoogleFonts.poppins(
-                                fontSize: 15,
-                                color: colorScheme.onSurfaceVariant,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            const SizedBox(height: 20),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 18,
-                                vertical: 12,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(30),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: colorScheme.primary.withOpacity(
-                                      0.08,
-                                    ),
-                                    blurRadius: 20,
-                                  ),
-                                ],
-                              ),
-                              child: Text(
-                                'Sign in to continue shaping careers with AI.',
-                                textAlign: TextAlign.center,
-                                style: GoogleFonts.poppins(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w500,
-                                  color: colorScheme.onSurfaceVariant,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 28),
-                            Container(
-                              padding: const EdgeInsets.all(20),
-                              decoration: BoxDecoration(
-                                gradient: AcadenoTheme.heroGradient,
-                                borderRadius: BorderRadius.circular(28),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: colorScheme.primary.withOpacity(0.2),
-                                    blurRadius: 24,
-                                    offset: const Offset(0, 16),
-                                  ),
-                                ],
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Intelligent workforce OS',
-                                    style: GoogleFonts.poppins(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.w700,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 6),
-                                  Text(
-                                    'Realtime dashboards, secure access and beautiful reporting in one place.',
-                                    style: GoogleFonts.poppins(
-                                      fontSize: 13,
-                                      color: Colors.white.withOpacity(0.9),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(height: 32),
-                            _buildInputLabel('Email'),
-                            const SizedBox(height: 8),
-                            TextFormField(
-                              controller: _emailController,
-                              decoration: _inputDecoration(
-                                context,
-                                hint: 'you@example.com',
-                                icon: Icons.email_outlined,
-                              ),
-                              keyboardType: TextInputType.emailAddress,
-                              validator: (value) {
-                                if (value == null || value.isEmpty) {
-                                  return 'Please enter your email';
-                                }
-                                if (!value.contains('@')) {
-                                  return 'Please enter a valid email';
-                                }
-                                return null;
-                              },
-                            ),
-                            const SizedBox(height: 20),
-                            _buildInputLabel('Password'),
-                            const SizedBox(height: 8),
-                            TextFormField(
-                              controller: _passwordController,
-                              decoration: _inputDecoration(
-                                context,
-                                hint: '••••••••',
-                                icon: Icons.lock_outline,
-                                suffix: IconButton(
-                                  icon: Icon(
-                                    _obscurePassword
-                                        ? Icons.visibility_rounded
-                                        : Icons.visibility_off_rounded,
-                                  ),
-                                  onPressed: () {
-                                    setState(() {
-                                      _obscurePassword = !_obscurePassword;
-                                    });
-                                  },
-                                ),
-                              ),
-                              obscureText: _obscurePassword,
-                              validator: (value) {
-                                if (value == null || value.isEmpty) {
-                                  return 'Please enter a password';
-                                }
-                                return null;
-                              },
-                            ),
-                            const SizedBox(height: 32),
-                            FilledButton(
-                              onPressed: _isLoading ? null : _login,
-                              style: FilledButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 16,
-                                ),
-                                textStyle: GoogleFonts.poppins(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                              child: _isLoading
-                                  ? const SizedBox(
-                                      height: 22,
-                                      width: 22,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                        color: Colors.white,
-                                      ),
-                                    )
-                                  : const Text('Sign In'),
-                            ),
-                            const SizedBox(height: 16),
-                            TextButton(
-                              onPressed: () {
-                                Navigator.of(context).push(
-                                  MaterialPageRoute(
-                                    builder: (context) =>
-                                        const RegisterScreen(),
-                                  ),
-                                );
-                              },
-                              child: Text(
-                                'New worker? Create account',
-                                style: GoogleFonts.poppins(
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ),
-                          ],
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Container(
+                      decoration: BoxDecoration(
+                        gradient: AcadenoTheme.heroGradient,
+                        borderRadius: BorderRadius.circular(40),
+                        boxShadow: [
+                          BoxShadow(
+                            color: colorScheme.primary.withOpacity(0.25),
+                            blurRadius: 30,
+                            offset: const Offset(0, 20),
+                          ),
+                        ],
+                      ),
+                      padding: const EdgeInsets.all(4),
+                      child: Container(
+                        padding: const EdgeInsets.all(28),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(36),
                         ),
+                        child: Image.asset('assets/logo.png', height: 72),
                       ),
                     ),
-                  ),
+                    const SizedBox(height: 24),
+                    Text(
+                      'ACADENO',
+                      style: GoogleFonts.poppins(
+                        fontSize: 28,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 4,
+                        color: colorScheme.primary,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Where AI Builds Careers',
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.poppins(
+                        fontSize: 15,
+                        color: colorScheme.onSurfaceVariant,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 32),
+                    _buildInputLabel('Email'),
+                    const SizedBox(height: 8),
+                    TextFormField(
+                      controller: _emailController,
+                      decoration: _inputDecoration(
+                        context,
+                        hint: 'you@example.com',
+                        icon: Icons.email_outlined,
+                      ),
+                      keyboardType: TextInputType.emailAddress,
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Please enter your email';
+                        }
+                        if (!value.contains('@')) {
+                          return 'Please enter a valid email';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 20),
+                    _buildInputLabel('Password'),
+                    const SizedBox(height: 8),
+                    TextFormField(
+                      controller: _passwordController,
+                      decoration: _inputDecoration(
+                        context,
+                        hint: '••••••••',
+                        icon: Icons.lock_outline,
+                        suffix: IconButton(
+                          icon: Icon(
+                            _obscurePassword
+                                ? Icons.visibility_rounded
+                                : Icons.visibility_off_rounded,
+                          ),
+                          onPressed: () {
+                            setState(() {
+                              _obscurePassword = !_obscurePassword;
+                            });
+                          },
+                        ),
+                      ),
+                      obscureText: _obscurePassword,
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Please enter a password';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 32),
+                    FilledButton(
+                      onPressed: _isLoading ? null : _login,
+                      style: FilledButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        textStyle: GoogleFonts.poppins(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      child: _isLoading
+                          ? const SizedBox(
+                              height: 22,
+                              width: 22,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : const Text('Sign In'),
+                    ),
+                    const SizedBox(height: 16),
+                    TextButton(
+                      onPressed: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (context) => const RegisterScreen(),
+                          ),
+                        );
+                      },
+                      child: Text(
+                        'New worker? Create account',
+                        style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
