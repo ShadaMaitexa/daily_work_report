@@ -197,13 +197,15 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           const SizedBox(height: 20),
           FilledButton.tonal(
-            onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (context) => const ReportFormScreen(),
-                ),
-              );
-            },
+            onPressed: _statusMessage == 'Report Submitted'
+                ? null
+                : () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (context) => const ReportFormScreen(),
+                      ),
+                    );
+                  },
             style: FilledButton.styleFrom(
               backgroundColor: theme.colorScheme.onPrimary,
               foregroundColor: theme.colorScheme.primary,
@@ -212,10 +214,14 @@ class _HomeScreenState extends State<HomeScreen> {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.edit_calendar_outlined),
+                Icon(_statusMessage == 'Report Submitted'
+                    ? Icons.check_circle
+                    : Icons.edit_calendar_outlined),
                 const SizedBox(width: 8),
                 Text(
-                  'Submit Report',
+                  _statusMessage == 'Report Submitted'
+                      ? 'Already Submitted'
+                      : 'Submit Report',
                   style: GoogleFonts.poppins(
                     fontWeight: FontWeight.w600,
                   ),
@@ -301,26 +307,34 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildQuickActions(BuildContext context) {
     final items = [
-      (
-        icon: Icons.edit_note_rounded,
-        title: 'Submit Now',
-        description: 'Share today’s accomplishments',
-        action: () => Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (context) => const ReportFormScreen(),
-              ),
-            )
-      ),
-      (
-        icon: Icons.history_rounded,
-        title: 'View History',
-        description: 'See previous submissions',
-        action: () => Navigator.of(context).push(
+      {
+        'icon': _statusMessage == 'Report Submitted'
+            ? Icons.check_circle
+            : Icons.edit_note_rounded,
+        'title': _statusMessage == 'Report Submitted'
+            ? 'Already Submitted'
+            : 'Submit Now',
+        'description': _statusMessage == 'Report Submitted'
+            ? 'Report submitted for today'
+            : 'Share today\'s accomplishments',
+        'action': _statusMessage == 'Report Submitted'
+            ? null
+            : () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (context) => const ReportFormScreen(),
+                  ),
+                )
+      },
+      {
+        'icon': Icons.history_rounded,
+        'title': 'View History',
+        'description': 'See previous submissions',
+        'action': () => Navigator.of(context).push(
               MaterialPageRoute(
                 builder: (context) => const ReportHistoryScreen(),
               ),
             )
-      ),
+      },
     ];
 
     return Column(
@@ -356,22 +370,23 @@ class _HomeScreenState extends State<HomeScreen> {
                 backgroundColor:
                     Theme.of(context).colorScheme.primary.withOpacity(0.15),
                 child: Icon(
-                  item.icon,
+                  item['icon'] as IconData,
                   color: Theme.of(context).colorScheme.primary,
                 ),
               ),
               title: Text(
-                item.title,
+                item['title'] as String,
                 style: GoogleFonts.poppins(
                   fontWeight: FontWeight.w600,
                 ),
               ),
               subtitle: Text(
-                item.description,
+                item['description'] as String,
                 style: GoogleFonts.poppins(fontSize: 13),
               ),
               trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 18),
-              onTap: item.action,
+              onTap: item['action'] as VoidCallback?,
+              enabled: item['action'] != null,
             ),
           ),
         ),

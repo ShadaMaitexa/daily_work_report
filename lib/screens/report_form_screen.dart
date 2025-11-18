@@ -45,11 +45,14 @@ class _ReportFormScreenState extends State<ReportFormScreen> {
   
   List<StudentRow> _studentRows = [];
   bool _isLoading = false;
+  bool _hasSubmittedToday = false;
+  bool _isCheckingSubmission = true;
 
   @override
   void initState() {
     super.initState();
     _addStudentRow();
+    _checkTodaySubmission();
   }
 
   @override
@@ -93,7 +96,35 @@ class _ReportFormScreenState extends State<ReportFormScreen> {
     return prefs.getString('workerName');
   }
 
+  Future<void> _checkTodaySubmission() async {
+    final workerId = await _getWorkerId();
+    if (workerId == null) {
+      setState(() {
+        _isCheckingSubmission = false;
+      });
+      return;
+    }
+
+    final hasSubmitted = await _hasSubmittedTodayCheck(workerId);
+    setState(() {
+      _hasSubmittedToday = hasSubmitted;
+      _isCheckingSubmission = false;
+    });
+  }
+
   Future<void> _submitReport() async {
+    if (_hasSubmittedToday) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('You have already submitted today\'s report. Only one submission per day is allowed.'),
+          backgroundColor: Colors.orange,
+          duration: Duration(seconds: 4),
+        ),
+      );
+      return;
+    }
+
     if (!_formKey.currentState!.validate()) {
       return;
     }
@@ -110,12 +141,17 @@ class _ReportFormScreenState extends State<ReportFormScreen> {
       return;
     }
 
-    if (await _hasSubmittedToday(workerId)) {
+    // Double check before submitting
+    if (await _hasSubmittedTodayCheck(workerId)) {
+      setState(() {
+        _hasSubmittedToday = true;
+      });
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('You have already submitted today\'s report.'),
+          content: Text('You have already submitted today\'s report. Only one submission per day is allowed.'),
           backgroundColor: Colors.orange,
+          duration: Duration(seconds: 4),
         ),
       );
       return;
@@ -157,6 +193,10 @@ class _ReportFormScreenState extends State<ReportFormScreen> {
     if (!mounted) return;
 
     if (result['success'] == true) {
+      setState(() {
+        _hasSubmittedToday = true;
+      });
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Report submitted successfully!'),
@@ -184,21 +224,64 @@ class _ReportFormScreenState extends State<ReportFormScreen> {
         ),
       ),
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24.0),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Text(
-                  'Daily Work Report',
-                  style: GoogleFonts.poppins(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 32),
+        child: _isCheckingSubmission
+            ? const Center(
+                child: CircularProgressIndicator(),
+              )
+            : _hasSubmittedToday
+                ? Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24.0),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.check_circle_outline,
+                            size: 80,
+                            color: Colors.green,
+                          ),
+                          const SizedBox(height: 24),
+                          Text(
+                            'Report Already Submitted',
+                            style: GoogleFonts.poppins(
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            'You have already submitted today\'s report.\nOnly one submission per day is allowed.',
+                            textAlign: TextAlign.center,
+                            style: GoogleFonts.poppins(
+                              fontSize: 16,
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                          const SizedBox(height: 32),
+                          ElevatedButton.icon(
+                            onPressed: () => Navigator.of(context).pop(),
+                            icon: const Icon(Icons.arrow_back),
+                            label: const Text('Go Back'),
+                          ),
+                        ],
+                      ),
+                    ),
+                  )
+                : SingleChildScrollView(
+                    padding: const EdgeInsets.all(24.0),
+                    child: Form(
+                      key: _formKey,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Text(
+                            'Daily Work Report',
+                            style: GoogleFonts.poppins(
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 32),
                 TextFormField(
                   controller: _tasksCompletedController,
                   decoration: const InputDecoration(
@@ -346,7 +429,9 @@ class _ReportFormScreenState extends State<ReportFormScreen> {
                 }),
                 const SizedBox(height: 32),
                 ElevatedButton(
-                  onPressed: _isLoading ? null : _submitReport,
+                  onPressed: (_isLoading || _hasSubmittedToday)
+                      ? null
+                      : _submitReport,
                   style: ElevatedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 16),
                   ),
@@ -366,10 +451,17 @@ class _ReportFormScreenState extends State<ReportFormScreen> {
     );
   }
 
-  Future<bool> _hasSubmittedToday(int workerId) async {
+  Future<bool> _hasSubmittedTodayCheck(int workerId) async {
     final result =
         await SheetsApi.checkTodayStatus(workerId: workerId.toString());
     if (result['success'] == true) {
+      // Check if there's a report entry for today (not just status)
+      final report = result['report'];
+      if (report != null) {
+        // If there's a report entry for today, it means already submitted
+        return true;
+      }
+      // Also check status as fallback
       final status = result['status']?.toString().toLowerCase();
       return status == 'submitted';
     }

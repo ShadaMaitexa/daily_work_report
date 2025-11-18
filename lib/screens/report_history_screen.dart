@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:intl/intl.dart';
 import '../services/sheets_api.dart';
 
 class ReportHistoryScreen extends StatefulWidget {
@@ -13,6 +14,7 @@ class ReportHistoryScreen extends StatefulWidget {
 class _ReportHistoryScreenState extends State<ReportHistoryScreen> {
   List<Map<String, dynamic>> _reports = [];
   bool _isLoading = true;
+  String? _errorMessage;
 
   @override
   void initState() {
@@ -28,26 +30,67 @@ class _ReportHistoryScreenState extends State<ReportHistoryScreen> {
   Future<void> _loadReports() async {
     setState(() {
       _isLoading = true;
+      _errorMessage = null;
     });
 
     final workerId = await _getWorkerId();
     if (workerId == null) {
       setState(() {
         _isLoading = false;
+        _errorMessage = 'Worker ID not found. Please login again.';
       });
       return;
     }
 
-    final result =
-        await SheetsApi.getWorkerReports(workerId: workerId.toString());
+    try {
+      final result =
+          await SheetsApi.getWorkerReports(workerId: workerId.toString());
 
-    setState(() {
-      _isLoading = false;
-    });
+      print('Report History - API Result: $result');
 
-    if (result['success'] == true && result['reports'] != null) {
+      if (result['success'] == true) {
+        final reportsList = result['reports'];
+        print('Reports list: $reportsList');
+        print('Reports list type: ${reportsList.runtimeType}');
+        
+        if (reportsList != null) {
+          if (reportsList is List) {
+            setState(() {
+              _reports = reportsList
+                  .whereType<Map<String, dynamic>>()
+                  .map((r) => Map<String, dynamic>.from(r))
+                  .toList();
+              _isLoading = false;
+              _errorMessage = null;
+            });
+            print('Loaded ${_reports.length} reports');
+          } else {
+            print('Reports is not a List, it is: ${reportsList.runtimeType}');
+            setState(() {
+              _isLoading = false;
+              _errorMessage = 'Unexpected data format received from server.';
+            });
+          }
+        } else {
+          print('Reports list is null');
+          setState(() {
+            _isLoading = false;
+            _reports = [];
+          });
+        }
+      } else {
+        print('API call was not successful: ${result['message']}');
+        setState(() {
+          _isLoading = false;
+          _errorMessage = result['message']?.toString() ?? 
+                         'Failed to load reports. Please try again.';
+        });
+      }
+    } catch (e) {
+      print('Error loading reports: $e');
       setState(() {
-        _reports = List<Map<String, dynamic>>.from(result['reports']);
+        _isLoading = false;
+        _errorMessage = 'Error loading reports: $e';
       });
     }
   }
@@ -55,6 +98,57 @@ class _ReportHistoryScreenState extends State<ReportHistoryScreen> {
   String _getStatus(Map<String, dynamic> report) {
     final status = (report['status'] ?? '').toString().toLowerCase();
     return status == 'submitted' ? 'Present' : 'Leave';
+  }
+
+  String _formatDate(dynamic dateValue) {
+    if (dateValue == null) return 'N/A';
+    
+    try {
+      DateTime dateTime;
+      final dateStr = dateValue.toString().trim();
+      
+      // Try parsing ISO format (2025-11-17T18:30:00.000Z)
+      if (dateStr.contains('T')) {
+        dateTime = DateTime.parse(dateStr);
+      }
+      // Try parsing simple date format (2025-11-17)
+      else if (dateStr.contains('-') && dateStr.length >= 10) {
+        dateTime = DateTime.parse(dateStr.split(' ').first);
+      }
+      // Try parsing as timestamp
+      else {
+        final timestamp = int.tryParse(dateStr);
+        if (timestamp != null) {
+          // Check if it's milliseconds or seconds
+          dateTime = timestamp > 1000000000000
+              ? DateTime.fromMillisecondsSinceEpoch(timestamp)
+              : DateTime.fromMillisecondsSinceEpoch(timestamp * 1000);
+        } else {
+          return dateStr; // Return as-is if can't parse
+        }
+      }
+      
+      // Format as "17 November 2025" or "17 Nov 2025"
+      return DateFormat('d MMMM yyyy').format(dateTime);
+    } catch (e) {
+      // If parsing fails, try to extract just the date part
+      final dateStr = dateValue.toString();
+      if (dateStr.contains('-')) {
+        final parts = dateStr.split('-');
+        if (parts.length >= 3) {
+          try {
+            final year = int.parse(parts[0]);
+            final month = int.parse(parts[1]);
+            final day = int.parse(parts[2].split('T').first.split(' ').first);
+            final dateTime = DateTime(year, month, day);
+            return DateFormat('d MMMM yyyy').format(dateTime);
+          } catch (_) {
+            return dateStr;
+          }
+        }
+      }
+      return dateStr;
+    }
   }
 
   String _getTasksPreview(Map<String, dynamic> report) {
@@ -107,7 +201,7 @@ class _ReportHistoryScreenState extends State<ReportHistoryScreen> {
                 ),
               ),
               const SizedBox(height: 24),
-              _buildDetailRow('Date', report['date']?.toString() ?? 'N/A'),
+              _buildDetailRow('Date', _formatDate(report['date'])),
               const SizedBox(height: 16),
               _buildDetailRow(
                 'Status',
@@ -230,27 +324,75 @@ class _ReportHistoryScreenState extends State<ReportHistoryScreen> {
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : _reports.isEmpty
+          : _errorMessage != null
               ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.inbox,
-                        size: 64,
-                        color: Colors.grey[400],
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        'No reports found',
-                        style: GoogleFonts.poppins(
-                          fontSize: 18,
-                          color: Colors.grey[600],
+                  child: Padding(
+                    padding: const EdgeInsets.all(24.0),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.error_outline,
+                          size: 64,
+                          color: Colors.red[300],
                         ),
-                      ),
-                    ],
+                        const SizedBox(height: 16),
+                        Text(
+                          'Error Loading Reports',
+                          style: GoogleFonts.poppins(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.grey[800],
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          _errorMessage!,
+                          textAlign: TextAlign.center,
+                          style: GoogleFonts.poppins(
+                            fontSize: 14,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                        ElevatedButton.icon(
+                          onPressed: _loadReports,
+                          icon: const Icon(Icons.refresh),
+                          label: const Text('Retry'),
+                        ),
+                      ],
+                    ),
                   ),
                 )
+              : _reports.isEmpty
+                  ? Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.inbox,
+                            size: 64,
+                            color: Colors.grey[400],
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            'No reports found',
+                            style: GoogleFonts.poppins(
+                              fontSize: 18,
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Your submitted reports will appear here',
+                            style: GoogleFonts.poppins(
+                              fontSize: 14,
+                              color: Colors.grey[500],
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
               : RefreshIndicator(
                   onRefresh: _loadReports,
                   child: ListView.builder(
@@ -267,7 +409,7 @@ class _ReportHistoryScreenState extends State<ReportHistoryScreen> {
                           contentPadding: const EdgeInsets.all(16),
                           onTap: () => _showReportDetails(report),
                           title: Text(
-                            report['date']?.toString() ?? 'N/A',
+                            _formatDate(report['date']),
                             style: GoogleFonts.poppins(
                               fontWeight: FontWeight.bold,
                               fontSize: 16,

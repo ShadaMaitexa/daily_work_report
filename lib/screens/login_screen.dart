@@ -36,33 +36,105 @@ class _LoginScreenState extends State<LoginScreen> {
       _isLoading = true;
     });
 
-    final result = await SheetsApi.loginWorker(
-      email: _emailController.text.trim(),
-      password: _passwordController.text,
-    );
-
-    setState(() {
-      _isLoading = false;
-    });
-
-    if (!mounted) return;
-
-    if (result['success'] == true && result['workerId'] != null) {
-      final workerId = int.tryParse(result['workerId'].toString());
-      if (workerId != null) {
-        await _authService.saveWorkerId(workerId);
+    try {
+      // Normalize email and password - trim whitespace and lowercase email
+      final email = _emailController.text.trim().toLowerCase();
+      final password = _passwordController.text.trim();
+      
+      if (email.isEmpty || password.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please enter both email and password'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        setState(() {
+          _isLoading = false;
+        });
+        return;
       }
-      if (result['name'] != null) {
-        await _authService.saveWorkerName(result['name'].toString());
-      }
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (context) => const HomeScreen()),
+      
+      print('Attempting login with email: $email (length: ${email.length})');
+      
+      final result = await SheetsApi.loginWorker(
+        email: email,
+        password: password,
       );
-    } else {
+
+      print('Login screen - Result: $result');
+
+      setState(() {
+        _isLoading = false;
+      });
+
+      if (!mounted) return;
+
+      // Check for success - try multiple formats
+      final isSuccess = result['success'] == true || 
+                       result['status']?.toString().toLowerCase() == 'success' ||
+                       result['status']?.toString().toLowerCase() == 'logged in';
+      
+      // Try to get workerId from multiple possible fields
+      final workerIdValue = result['workerId'] ?? 
+                           result['id'] ?? 
+                           result['userId'] ??
+                           result['data']?['workerId'] ??
+                           result['data']?['id'];
+      
+      print('Login success: $isSuccess, workerId: $workerIdValue');
+
+      if (isSuccess && workerIdValue != null) {
+        final workerId = int.tryParse(workerIdValue.toString());
+        if (workerId != null) {
+          await _authService.saveWorkerId(workerId);
+          print('Saved workerId: $workerId');
+        } else {
+          print('Warning: Could not parse workerId: $workerIdValue');
+        }
+        
+        // Try to get name from multiple possible fields
+        final name = result['name'] ?? 
+                    result['workerName'] ?? 
+                    result['data']?['name'] ??
+                    result['data']?['workerName'];
+        
+        if (name != null) {
+          await _authService.saveWorkerName(name.toString());
+          print('Saved workerName: $name');
+        }
+        
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (context) => const HomeScreen()),
+        );
+      } else {
+        final errorMessage = result['message'] ?? 
+                            result['error'] ?? 
+                            result['msg'] ??
+                            'Invalid login credentials. Please check your email and password.';
+        
+        print('Login failed: $errorMessage');
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(errorMessage),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
+    } catch (e) {
+      print('Login exception: $e');
+      setState(() {
+        _isLoading = false;
+      });
+      
+      if (!mounted) return;
+      
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(result['message'] ?? 'Invalid login credentials'),
+          content: Text('Login error: $e'),
           backgroundColor: Colors.red,
+          duration: const Duration(seconds: 4),
         ),
       );
     }
