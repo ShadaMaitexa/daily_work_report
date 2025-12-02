@@ -3,7 +3,6 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:http/http.dart' as http;
 
 class SheetsApi {
-  // TODO: Replace with your Google Apps Script Web App URL
   static const String _scriptUrl =
       'https://script.google.com/macros/s/AKfycbyPTe9xQc2KA2V-jcT1xxyrB27AZdi_aGg0Zoy7WzaB_LHOhdAptRMOw3VZSYHrOE9zNg/exec';
 
