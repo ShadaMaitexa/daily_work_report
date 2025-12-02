@@ -4,7 +4,7 @@ import 'package:http/http.dart' as http;
 class SheetsApi {
   // TODO: Replace with your Google Apps Script Web App URL
   static const String _scriptUrl =
-      'https://script.google.com/macros/s/AKfycbz3MlFCPCSRyhgKuRK8z4xpeBpyiMR1AUjmYMrvDiGFbuvejxSeMD9DtJIZfq_WUgA7-w/exec';
+      'https://script.google.com/macros/s/AKfycbyPTe9xQc2KA2V-jcT1xxyrB27AZdi_aGg0Zoy7WzaB_LHOhdAptRMOw3VZSYHrOE9zNg/exec';
 
   static Future<Map<String, dynamic>> _postAction({
     required String action,
