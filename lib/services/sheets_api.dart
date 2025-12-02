@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:http/http.dart' as http;
 
 class SheetsApi {
@@ -19,11 +20,23 @@ class SheetsApi {
       print('POST request - Action: $action');
       print('POST request - Body: $body');
 
-      final response = await http.post(
-        Uri.parse(_scriptUrl),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode(body),
-      );
+      // On web, sending JSON with a custom Content-Type triggers a CORS
+      // preflight (OPTIONS) which many Google Apps Script deployments
+      // don't handle. To avoid preflight, send form-encoded data when
+      // running on the web. For mobile/desktop, send JSON as before.
+      final uri = Uri.parse(_scriptUrl);
+      http.Response response;
+      if (kIsWeb) {
+        // Convert all values to strings for form encoding
+        final formBody = body.map((k, v) => MapEntry(k, v?.toString() ?? ''));
+        response = await http.post(uri, body: formBody);
+      } else {
+        response = await http.post(
+          uri,
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode(body),
+        );
+      }
 
       print('POST response status: ${response.statusCode}');
       print('POST response body: ${response.body}');
