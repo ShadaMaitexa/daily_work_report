@@ -6,26 +6,19 @@ import '../theme/app_theme.dart';
 
 class StudentRow {
   final TextEditingController nameController;
-  final TextEditingController topicController;
-  final TextEditingController timeController;
+  final TextEditingController activityController;
 
-  StudentRow({
-    required this.nameController,
-    required this.topicController,
-    required this.timeController,
-  });
+  StudentRow({required this.nameController, required this.activityController});
 
   void dispose() {
     nameController.dispose();
-    topicController.dispose();
-    timeController.dispose();
+    activityController.dispose();
   }
 
   Map<String, String> toMap() {
     return {
       'name': nameController.text.trim(),
-      'topic': topicController.text.trim(),
-      'time': timeController.text.trim(),
+      'activity': activityController.text.trim(),
     };
   }
 }
@@ -72,11 +65,11 @@ class _ReportFormScreenState extends State<ReportFormScreen> {
             nameController: TextEditingController(
               text: student['name']?.toString() ?? '',
             ),
-            topicController: TextEditingController(
-              text: student['topic']?.toString() ?? '',
-            ),
-            timeController: TextEditingController(
-              text: student['time']?.toString() ?? '',
+            activityController: TextEditingController(
+              text:
+                  student['activity']?.toString() ??
+                  student['topic']?.toString() ??
+                  '',
             ),
           );
           _studentRows.add(row);
@@ -113,8 +106,7 @@ class _ReportFormScreenState extends State<ReportFormScreen> {
       _studentRows.add(
         StudentRow(
           nameController: TextEditingController(),
-          topicController: TextEditingController(),
-          timeController: TextEditingController(),
+          activityController: TextEditingController(),
         ),
       );
     });
@@ -556,24 +548,38 @@ class _ReportFormScreenState extends State<ReportFormScreen> {
                                       'Student Name',
                                       Icons.person,
                                     ),
+                                    validator: (value) {
+                                      if (value != null &&
+                                          value.isNotEmpty &&
+                                          _studentRows[index]
+                                              .activityController
+                                              .text
+                                              .isEmpty) {
+                                        return 'Please enter activity for this student';
+                                      }
+                                      return null;
+                                    },
                                   ),
                                   const SizedBox(height: 8),
                                   TextFormField(
                                     controller:
-                                        _studentRows[index].topicController,
+                                        _studentRows[index].activityController,
                                     decoration: _fieldDecoration(
-                                      'Topic Taken',
-                                      Icons.book,
+                                      'Activity Performed',
+                                      Icons.assignment,
                                     ),
-                                  ),
-                                  const SizedBox(height: 8),
-                                  TextFormField(
-                                    controller:
-                                        _studentRows[index].timeController,
-                                    decoration: _fieldDecoration(
-                                      'Time',
-                                      Icons.access_time,
-                                    ),
+                                    maxLines: 3,
+                                    validator: (value) {
+                                      if (value != null &&
+                                          value.isNotEmpty &&
+                                          _studentRows[index]
+                                              .nameController
+                                              .text
+                                              .isEmpty) {
+                                        return 'Please enter student name for this activity';
+                                      }
+                                      return null;
+                                    },
                                   ),
                                 ],
                               ),
@@ -630,6 +636,10 @@ class _ReportFormScreenState extends State<ReportFormScreen> {
   }
 
   InputDecoration _fieldDecoration(String label, IconData icon) {
-    return InputDecoration(labelText: label, prefixIcon: Icon(icon));
+    return InputDecoration(
+      labelText: label,
+      prefixIcon: Icon(icon),
+      hintStyle: TextStyle(color: Colors.grey.withOpacity(0.6)),
+    );
   }
 }

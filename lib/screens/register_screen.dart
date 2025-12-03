@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../services/sheets_api.dart';
 import '../theme/app_theme.dart';
@@ -158,8 +159,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         if (value == null || value.isEmpty) {
                           return 'Please enter your email';
                         }
-                        if (!value.contains('@')) {
-                          return 'Please enter a valid email';
+                        if (!value.contains('@') || !value.contains('.')) {
+                          return 'Please enter a valid email (e.g., user@example.com)';
+                        }
+                        final parts = value.split('@');
+                        if (parts.length != 2 ||
+                            parts[0].isEmpty ||
+                            parts[1].isEmpty) {
+                          return 'Please enter a valid email format';
                         }
                         return null;
                       },
@@ -171,13 +178,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       controller: _phoneController,
                       decoration: _fieldDecoration(
                         context,
-                        hint: '+1 555 0100',
+                        hint: '9074402900',
                         icon: Icons.phone_outlined,
                       ),
                       keyboardType: TextInputType.phone,
+                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                       validator: (value) {
                         if (value == null || value.isEmpty) {
                           return 'Please enter your phone number';
+                        }
+                        final digitsOnly = value.replaceAll(RegExp(r'\D'), '');
+                        if (digitsOnly.length != 10) {
+                          return 'Phone number must be exactly 10 digits';
                         }
                         return null;
                       },
@@ -279,6 +291,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
     final colorScheme = Theme.of(context).colorScheme;
     return InputDecoration(
       hintText: hint,
+      hintStyle: TextStyle(
+        color: colorScheme.onSurfaceVariant.withOpacity(0.5),
+      ),
       prefixIcon: Icon(icon),
       suffixIcon: suffix,
       filled: true,
