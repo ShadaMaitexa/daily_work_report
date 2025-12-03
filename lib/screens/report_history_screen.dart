@@ -29,74 +29,72 @@ class _ReportHistoryScreenState extends State<ReportHistoryScreen> {
   }
 
   Future<void> _loadReports() async {
+  setState(() {
+    _isLoading = true;
+    _errorMessage = null;
+  });
+
+  final workerId = await _getWorkerId();
+  if (workerId == null) {
     setState(() {
-      _isLoading = true;
-      _errorMessage = null;
+      _isLoading = false;
+      _errorMessage = 'Worker ID not found. Please login again.';
     });
+    return;
+  }
 
-    final workerId = await _getWorkerId();
-    if (workerId == null) {
-      setState(() {
-        _isLoading = false;
-        _errorMessage = 'Worker ID not found. Please login again.';
-      });
-      return;
-    }
+  try {
+    final result = await SheetsApi.getWorkerReports(workerId.toString());
 
-    try {
-      final result = await SheetsApi.getWorkerReports(
-        workerId: workerId.toString(),
-      );
+    print('Report History - API Result: $result');
 
-      print('Report History - API Result: $result');
+    if (result['success'] == true) {
+      final reportsList = result['reports'];
+      print('Reports list: $reportsList');
+      print('Reports list type: ${reportsList.runtimeType}');
 
-      if (result['success'] == true) {
-        final reportsList = result['reports'];
-        print('Reports list: $reportsList');
-        print('Reports list type: ${reportsList.runtimeType}');
-
-        if (reportsList != null) {
-          if (reportsList is List) {
-            setState(() {
-              _reports = reportsList
-                  .whereType<Map<String, dynamic>>()
-                  .map((r) => Map<String, dynamic>.from(r))
-                  .toList();
-              _isLoading = false;
-              _errorMessage = null;
-            });
-            print('Loaded ${_reports.length} reports');
-          } else {
-            print('Reports is not a List, it is: ${reportsList.runtimeType}');
-            setState(() {
-              _isLoading = false;
-              _errorMessage = 'Unexpected data format received from server.';
-            });
-          }
+      if (reportsList != null) {
+        if (reportsList is List) {
+          setState(() {
+            _reports = reportsList
+                .whereType<Map<String, dynamic>>()
+                .map((r) => Map<String, dynamic>.from(r))
+                .toList();
+            _isLoading = false;
+            _errorMessage = null;
+          });
+          print('Loaded ${_reports.length} reports');
         } else {
-          print('Reports list is null');
+          print('Reports is not a List, it is: ${reportsList.runtimeType}');
           setState(() {
             _isLoading = false;
-            _reports = [];
+            _errorMessage = 'Unexpected data format received from server.';
           });
         }
       } else {
-        print('API call was not successful: ${result['message']}');
+        print('Reports list is null');
         setState(() {
           _isLoading = false;
-          _errorMessage =
-              result['message']?.toString() ??
-              'Failed to load reports. Please try again.';
+          _reports = [];
         });
       }
-    } catch (e) {
-      print('Error loading reports: $e');
+    } else {
+      print('API call was not successful: ${result['message']}');
       setState(() {
         _isLoading = false;
-        _errorMessage = 'Error loading reports: $e';
+        _errorMessage =
+            result['message']?.toString() ??
+            'Failed to load reports. Please try again.';
       });
     }
+  } catch (e) {
+    print('Error loading reports: $e');
+    setState(() {
+      _isLoading = false;
+      _errorMessage = 'Error loading reports: $e';
+    });
   }
+}
 
   String _getStatus(Map<String, dynamic> report) {
     final status = (report['status'] ?? '').toString().toLowerCase();

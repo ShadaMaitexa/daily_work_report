@@ -617,23 +617,23 @@ class _ReportFormScreenState extends State<ReportFormScreen> {
     );
   }
 
-  Future<bool> _hasSubmittedTodayCheck(int workerId) async {
-    final result = await SheetsApi.checkTodayStatus(
-      workerId: workerId.toString(),
-    );
-    if (result['success'] == true) {
-      // Check if there's a report entry for today (not just status)
-      final report = result['report'];
-      if (report != null) {
-        // If there's a report entry for today, it means already submitted
-        return true;
-      }
-      // Also check status as fallback
-      final status = result['status']?.toString().toLowerCase();
-      return status == 'submitted';
+Future<bool> _hasSubmittedTodayCheck(int workerId) async {
+  final result = await SheetsApi.checkTodayStatus(workerId.toString());
+
+  if (result['success'] == true) {
+    // Check if there's a report entry for today (not just status)
+    final report = result['report'];
+    if (report != null) {
+      // If there's a report entry for today, it means already submitted
+      return true;
     }
-    return false;
+    
+    // Also check status as fallback
+    final status = result['status']?.toString().toLowerCase();
+    return status == 'submitted';
   }
+  return false;
+}
 
   InputDecoration _fieldDecoration(String label, IconData icon) {
     return InputDecoration(
