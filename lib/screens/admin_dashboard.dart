@@ -1,6 +1,8 @@
+import 'dart:convert'; // FIX: required for jsonDecode
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
+
 import '../services/auth_service.dart';
 import '../services/sheets_api.dart';
 import '../theme/app_theme.dart';
@@ -42,12 +44,13 @@ class _AdminDashboardState extends State<AdminDashboard> {
     if (result['success'] == true && result['reports'] != null) {
       final reports = List<Map<String, dynamic>>.from(result['reports']);
       final workers = <String>{};
+
       for (final report in reports) {
-        // Try multiple field names for worker name
         final workerName =
             report['workerName']?.toString() ??
             report['name']?.toString() ??
             'Unknown';
+
         if (workerName.isNotEmpty && workerName != 'Unknown') {
           workers.add(workerName);
         }
@@ -57,6 +60,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
         _allReports = reports;
         _workerOptions = ['All Workers', ...workers.toList()..sort()];
       });
+
       _applyFilters();
     } else {
       print('Failed to load reports: ${result['message']}');
@@ -83,9 +87,9 @@ class _AdminDashboardState extends State<AdminDashboard> {
     if (_selectedDate != null) {
       final selectedDateString =
           '${_selectedDate!.year.toString().padLeft(4, '0')}-${_selectedDate!.month.toString().padLeft(2, '0')}-${_selectedDate!.day.toString().padLeft(2, '0')}';
+
       filtered = filtered.where((report) {
         final reportDate = report['date']?.toString() ?? '';
-        // Normalize date for comparison (extract YYYY-MM-DD part)
         final normalizedReportDate = reportDate.split('T')[0].split(' ')[0];
         return normalizedReportDate == selectedDateString;
       }).toList();
@@ -121,7 +125,6 @@ class _AdminDashboardState extends State<AdminDashboard> {
   }
 
   String _getStatus(Map<String, dynamic> report) {
-    // Check multiple field names for tasks completed
     final hasData =
         (report['tasksCompleted']?.toString().isNotEmpty ?? false) ||
         (report['completed']?.toString().isNotEmpty ?? false);
@@ -134,54 +137,40 @@ class _AdminDashboardState extends State<AdminDashboard> {
     try {
       final dateStr = dateValue.toString().trim();
 
-      // Extract date parts from string (handles "2025-11-17" format)
       if (dateStr.contains('-')) {
         final parts = dateStr.split('-');
         if (parts.length >= 3) {
           try {
-            // Extract just the date part (YYYY-MM-DD) before any time or other data
             final dateOnly =
                 parts[0] +
                 '-' +
                 parts[1] +
                 '-' +
                 parts[2].split('T').first.split(' ').first;
-            final dateParts = dateOnly.split('-');
 
-            if (dateParts.length == 3) {
-              final year = int.parse(dateParts[0]);
-              final month = int.parse(dateParts[1]);
-              final day = int.parse(dateParts[2]);
+            final p = dateOnly.split('-');
+            if (p.length == 3) {
+              final y = int.parse(p[0]);
+              final m = int.parse(p[1]);
+              final d = int.parse(p[2]);
 
-              // Create DateTime in local timezone (not UTC) to avoid day shift
-              final dateTime = DateTime(year, month, day);
-
-              // Format as "17 November 2025"
-              return DateFormat('d MMMM yyyy').format(dateTime);
+              final dt = DateTime(y, m, d);
+              return DateFormat('d MMMM yyyy').format(dt);
             }
-          } catch (e) {
-            print('Error parsing date parts: $e');
-          }
+          } catch (_) {}
         }
       }
 
-      // Try parsing ISO format with timezone (2025-11-17T18:30:00.000Z)
       if (dateStr.contains('T')) {
         try {
           final parsed = DateTime.parse(dateStr);
-          // Use the date components directly to avoid timezone issues
-          return DateFormat(
-            'd MMMM yyyy',
-          ).format(DateTime(parsed.year, parsed.month, parsed.day));
-        } catch (e) {
-          print('Error parsing ISO date: $e');
-        }
+          return DateFormat('d MMMM yyyy')
+              .format(DateTime(parsed.year, parsed.month, parsed.day));
+        } catch (_) {}
       }
 
-      // Fallback: return as-is
       return dateStr;
-    } catch (e) {
-      print('Error in _formatDate: $e, value: $dateValue');
+    } catch (_) {
       return dateValue.toString();
     }
   }
@@ -234,66 +223,97 @@ class _AdminDashboardState extends State<AdminDashboard> {
               const SizedBox(height: 12),
               _buildDetailRow('Status', _getStatus(report)),
               const SizedBox(height: 24),
+
               _buildSection(
                 'Tasks Completed',
                 report['tasksCompleted'] ?? report['completed'],
               ),
               const SizedBox(height: 16),
+
               _buildSection(
                 'Tasks In Progress',
                 report['tasksInProgress'] ?? report['inprogress'],
               ),
               const SizedBox(height: 16),
+
               _buildSection(
                 'Next Steps',
                 report['nextSteps'] ?? report['nextsteps'],
               ),
               const SizedBox(height: 16),
+
               _buildSection('Issues', report['issues']),
-              if (report['students'] != null &&
-                  (report['students'] as List).isNotEmpty) ...[
-                const SizedBox(height: 24),
-                Text(
-                  'Students',
-                  style: GoogleFonts.poppins(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                ...(report['students'] as List).map((student) {
-                  return Card(
-                    margin: const EdgeInsets.only(bottom: 12),
-                    child: Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _buildDetailRow(
-                            'Name',
-                            student['name']?.toString() ?? 'N/A',
-                          ),
-                          const SizedBox(height: 8),
-                          _buildDetailRow(
-                            'Topic',
-                            student['topic']?.toString() ?? 'N/A',
-                          ),
-                          const SizedBox(height: 8),
-                          _buildDetailRow(
-                            'Time',
-                            student['time']?.toString() ?? 'N/A',
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                }),
-              ],
+              const SizedBox(height: 16),
+
+              // ---- Students List Fix ----
+              _buildStudentsSection(report),
+
               const SizedBox(height: 32),
             ],
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildStudentsSection(Map<String, dynamic> report) {
+    List<dynamic> studentsList = [];
+
+    if (report['students'] != null) {
+      final studentsRaw = report['students'];
+
+      if (studentsRaw is List) {
+        studentsList = studentsRaw;
+      } else if (studentsRaw is String && studentsRaw.isNotEmpty) {
+        try {
+          final decoded = jsonDecode(studentsRaw);
+          if (decoded is List) studentsList = decoded;
+        } catch (_) {}
+      }
+    }
+
+    if (studentsList.isEmpty) return const SizedBox();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 24),
+        Text(
+          'Students',
+          style: GoogleFonts.poppins(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 12),
+        ...studentsList.map((student) {
+          return Card(
+            margin: const EdgeInsets.only(bottom: 12),
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildDetailRow(
+                    'Name',
+                    student['name']?.toString() ?? 'N/A',
+                  ),
+                  const SizedBox(height: 8),
+                  _buildDetailRow(
+                    'Topic',
+                    student['topic']?.toString() ?? 'N/A',
+                  ),
+                  const SizedBox(height: 8),
+                  _buildDetailRow(
+                    'Time',
+                    student['time']?.toString() ?? 'N/A',
+                  ),
+                ],
+              ),
+            ),
+          );
+        }),
+      ],
     );
   }
 
@@ -338,7 +358,12 @@ class _AdminDashboardState extends State<AdminDashboard> {
             ),
           ),
         ),
-        Expanded(child: Text(value, style: GoogleFonts.poppins(fontSize: 14))),
+        Expanded(
+          child: Text(
+            value,
+            style: GoogleFonts.poppins(fontSize: 14),
+          ),
+        ),
       ],
     );
   }
@@ -355,9 +380,12 @@ class _AdminDashboardState extends State<AdminDashboard> {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+
     return Scaffold(
       body: Container(
-        decoration: const BoxDecoration(gradient: AcadenoTheme.auroraGradient),
+        decoration: const BoxDecoration(
+          gradient: AcadenoTheme.auroraGradient,
+        ),
         child: SafeArea(
           child: Column(
             children: [
@@ -372,10 +400,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                       child: SizedBox(
                         width: 42,
                         height: 42,
-                        child: Image.asset(
-                          'assets/logo.png',
-                        
-                        ),
+                        child: Image.asset('assets/logo.png'),
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -410,24 +435,27 @@ class _AdminDashboardState extends State<AdminDashboard> {
                   ],
                 ),
               ),
+
               Expanded(
                 child: _isLoading
                     ? const Center(child: CircularProgressIndicator())
                     : _filteredReports.isEmpty
-                    ? _buildEmptyState(context)
-                    : RefreshIndicator(
-                        onRefresh: _loadReports,
-                        child: ListView(
-                          padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
-                          children: [
-                            _buildFilterCard(context),
-                            const SizedBox(height: 18),
-                            ..._filteredReports.map(
-                              (report) => _buildReportTile(context, report),
+                        ? _buildEmptyState(context)
+                        : RefreshIndicator(
+                            onRefresh: _loadReports,
+                            child: ListView(
+                              padding:
+                                  const EdgeInsets.fromLTRB(20, 0, 20, 24),
+                              children: [
+                                _buildFilterCard(context),
+                                const SizedBox(height: 18),
+                                ..._filteredReports.map(
+                                  (report) =>
+                                      _buildReportTile(context, report),
+                                ),
+                              ],
                             ),
-                          ],
-                        ),
-                      ),
+                          ),
               ),
             ],
           ),
@@ -467,6 +495,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
   Widget _buildFilterCard(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+
     return Card(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
       elevation: 6,
@@ -477,7 +506,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
           children: [
             Row(
               children: [
-                Icon(Icons.filter_list_rounded, color: colorScheme.primary),
+                Icon(Icons.filter_list_rounded,
+                    color: colorScheme.primary),
                 const SizedBox(width: 8),
                 Text(
                   'Filters',
@@ -501,10 +531,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
                 border: OutlineInputBorder(),
               ),
               items: _workerOptions
-                  .map(
-                    (worker) =>
-                        DropdownMenuItem(value: worker, child: Text(worker)),
-                  )
+                  .map((worker) =>
+                      DropdownMenuItem(value: worker, child: Text(worker)))
                   .toList(),
               onChanged: (value) {
                 if (value == null) return;
@@ -524,7 +552,9 @@ class _AdminDashboardState extends State<AdminDashboard> {
                     label: Text(
                       _selectedDate == null
                           ? 'Select Date'
-                          : _formatDate(_selectedDate!.toIso8601String()),
+                          : _formatDate(
+                              _selectedDate!.toIso8601String(),
+                            ),
                     ),
                   ),
                 ),
@@ -544,13 +574,16 @@ class _AdminDashboardState extends State<AdminDashboard> {
     );
   }
 
-  Widget _buildReportTile(BuildContext context, Map<String, dynamic> report) {
+  Widget _buildReportTile(
+      BuildContext context, Map<String, dynamic> report) {
     final status = _getStatus(report);
     final date = _formatDate(report['date']);
+
     final workerName =
         report['workerName']?.toString() ??
         report['name']?.toString() ??
         'Unknown';
+
     final theme = Theme.of(context);
 
     return Container(
@@ -572,11 +605,17 @@ class _AdminDashboardState extends State<AdminDashboard> {
         contentPadding: const EdgeInsets.all(18),
         title: Text(
           workerName,
-          style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.w700),
+          style: GoogleFonts.poppins(
+            fontSize: 16,
+            fontWeight: FontWeight.w700,
+          ),
         ),
         subtitle: Padding(
           padding: const EdgeInsets.only(top: 6.0),
-          child: Text('Date: $date', style: GoogleFonts.poppins(fontSize: 13)),
+          child: Text(
+            'Date: $date',
+            style: GoogleFonts.poppins(fontSize: 13),
+          ),
         ),
         trailing: Chip(
           label: Text(
@@ -586,9 +625,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
               fontWeight: FontWeight.w600,
             ),
           ),
-          backgroundColor: status == 'Present'
-              ? Colors.green[100]
-              : Colors.orange[100],
+          backgroundColor:
+              status == 'Present' ? Colors.green[100] : Colors.orange[100],
           side: BorderSide(
             color: status == 'Present' ? Colors.green : Colors.orange,
           ),
