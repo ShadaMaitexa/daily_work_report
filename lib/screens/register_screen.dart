@@ -1,6 +1,7 @@
+import 'package:daily_work_report/supabase_config.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../services/sheets_api.dart';
+
 import '../theme/app_theme.dart';
 import 'login_screen.dart';
 
@@ -12,6 +13,7 @@ class RegisterScreen extends StatefulWidget {
 }
 
 class _RegisterScreenState extends State<RegisterScreen> {
+    final supabase = SupabaseConfig.client;
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
@@ -28,48 +30,48 @@ class _RegisterScreenState extends State<RegisterScreen> {
     _passwordController.dispose();
     super.dispose();
   }
+Future<void> _register() async {
+  if (!_formKey.currentState!.validate()) return;
 
-  Future<void> _register() async {
-    if (!_formKey.currentState!.validate()) {
-      return;
-    }
+  setState(() => _isLoading = true);
 
-    setState(() {
-      _isLoading = true;
-    });
-
-    final result = await SheetsApi.registerWorker(
-      name: _nameController.text.trim(),
+  try {
+    final response = await supabase.auth.signUp(
       email: _emailController.text.trim(),
-      phone: _phoneController.text.trim(),
-      password: _passwordController.text,
+      password: _passwordController.text.trim(),
+      data: {
+        'name': _nameController.text.trim(),
+        'phone': _phoneController.text.trim(),
+      },
     );
-
-    setState(() {
-      _isLoading = false;
-    });
 
     if (!mounted) return;
 
-    if (result['success'] == true) {
+    if (response.user != null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Registration successful!'),
           backgroundColor: Colors.green,
         ),
       );
-      Navigator.of(context).pushReplacement(
+
+      Navigator.pushReplacement(
+        context,
         MaterialPageRoute(builder: (context) => const LoginScreen()),
       );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(result['message'] ?? 'Registration failed'),
-          backgroundColor: Colors.red,
-        ),
-      );
     }
+  } catch (e) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(e.toString()),
+        backgroundColor: Colors.red,
+      ),
+    );
   }
+
+  setState(() => _isLoading = false);
+}
+
 
   @override
   Widget build(BuildContext context) {

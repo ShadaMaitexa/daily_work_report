@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
-import '../services/sheets_api.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../theme/app_theme.dart';
 
 class ReportHistoryScreen extends StatefulWidget {
@@ -13,6 +13,8 @@ class ReportHistoryScreen extends StatefulWidget {
 }
 
 class _ReportHistoryScreenState extends State<ReportHistoryScreen> {
+  final supabase = Supabase.instance.client;
+
   List<Map<String, dynamic>> _reports = [];
   bool _isLoading = true;
   String? _errorMessage;
@@ -44,53 +46,24 @@ class _ReportHistoryScreenState extends State<ReportHistoryScreen> {
     }
 
     try {
-      final result = await SheetsApi.getWorkerReports(
-        workerId: workerId.toString(),
-      );
+      final response = await supabase
+          .from('daily_reports')
+          .select()
+          .eq('worker_id', workerId)
+          .order('date', ascending: false);
 
-      print('Report History - API Result: $result');
-
-      if (result['success'] == true) {
-        final reportsList = result['reports'];
-        print('Reports list: $reportsList');
-        print('Reports list type: ${reportsList.runtimeType}');
-
-        if (reportsList != null) {
-          if (reportsList is List) {
-            setState(() {
-              _reports = reportsList
-                  .whereType<Map<String, dynamic>>()
-                  .map((r) => Map<String, dynamic>.from(r))
-                  .toList();
-              _isLoading = false;
-              _errorMessage = null;
-            });
-            print('Loaded ${_reports.length} reports');
-          } else {
-            print('Reports is not a List, it is: ${reportsList.runtimeType}');
-            setState(() {
-              _isLoading = false;
-              _errorMessage = 'Unexpected data format received from server.';
-            });
-          }
-        } else {
-          print('Reports list is null');
-          setState(() {
-            _isLoading = false;
-            _reports = [];
-          });
-        }
-      } else {
-        print('API call was not successful: ${result['message']}');
+      if (response.isNotEmpty) {
         setState(() {
+          _reports = response.map((e) => Map<String, dynamic>.from(e)).toList();
           _isLoading = false;
-          _errorMessage =
-              result['message']?.toString() ??
-              'Failed to load reports. Please try again.';
+        });
+      } else {
+        setState(() {
+          _reports = [];
+          _isLoading = false;
         });
       }
     } catch (e) {
-      print('Error loading reports: $e');
       setState(() {
         _isLoading = false;
         _errorMessage = 'Error loading reports: $e';
@@ -99,98 +72,27 @@ class _ReportHistoryScreenState extends State<ReportHistoryScreen> {
   }
 
   String _getStatus(Map<String, dynamic> report) {
-    final status = (report['status'] ?? '').toString().toLowerCase();
-    return status == 'submitted' ? 'Present' : 'Leave';
+    final completed = (report['completed'] ?? '').toString().trim();
+    return completed.isNotEmpty ? 'Present' : 'Leave';
   }
 
   String _formatDate(dynamic dateValue) {
     if (dateValue == null) return 'N/A';
 
     try {
-      final dateStr = dateValue.toString().trim();
-
-      // Extract date parts from string (handles "2025-11-17" format)
-      if (dateStr.contains('-')) {
-        final parts = dateStr.split('-');
-        if (parts.length >= 3) {
-          try {
-            // Extract just the date part (YYYY-MM-DD) before any time or other data
-            final dateOnly =
-                parts[0] +
-                '-' +
-                parts[1] +
-                '-' +
-                parts[2].split('T').first.split(' ').first;
-            final dateParts = dateOnly.split('-');
-
-            if (dateParts.length == 3) {
-              final year = int.parse(dateParts[0]);
-              final month = int.parse(dateParts[1]);
-              final day = int.parse(dateParts[2]);
-
-              // Create DateTime in local timezone (not UTC) to avoid day shift
-              final dateTime = DateTime(year, month, day);
-
-              // Format as "17 November 2025"
-              return DateFormat('d MMMM yyyy').format(dateTime);
-            }
-          } catch (e) {
-            print('Error parsing date parts: $e');
-          }
-        }
-      }
-
-      // Try parsing ISO format with timezone (2025-11-17T18:30:00.000Z)
-      if (dateStr.contains('T')) {
-        try {
-          final parsed = DateTime.parse(dateStr);
-          // Use the date components directly to avoid timezone issues
-          return DateFormat(
-            'd MMMM yyyy',
-          ).format(DateTime(parsed.year, parsed.month, parsed.day));
-        } catch (e) {
-          print('Error parsing ISO date: $e');
-        }
-      }
-
-      // Try parsing as timestamp
-      final timestamp = int.tryParse(dateStr);
-      if (timestamp != null) {
-        try {
-          // Check if it's milliseconds or seconds
-          final dateTime = timestamp > 1000000000000
-              ? DateTime.fromMillisecondsSinceEpoch(timestamp)
-              : DateTime.fromMillisecondsSinceEpoch(timestamp * 1000);
-          // Use date components to avoid timezone shift
-          return DateFormat(
-            'd MMMM yyyy',
-          ).format(DateTime(dateTime.year, dateTime.month, dateTime.day));
-        } catch (e) {
-          print('Error parsing timestamp: $e');
-        }
-      }
-
-      // Fallback: return as-is
-      return dateStr;
-    } catch (e) {
-      print('Error in _formatDate: $e, value: $dateValue');
+      final parsed = DateTime.parse(dateValue.toString());
+      return DateFormat('d MMMM yyyy').format(DateTime(parsed.year, parsed.month, parsed.day));
+    } catch (_) {
       return dateValue.toString();
     }
   }
 
   String _getTasksPreview(Map<String, dynamic> report) {
-    final tasksCompleted =
-        report['completed']?.toString() ??
-        report['tasksCompleted']?.toString() ??
-        '';
-    if (tasksCompleted.isEmpty) {
-      return 'No tasks completed';
-    }
-    // Show first 50 characters as preview
-    if (tasksCompleted.length > 50) {
-      return '${tasksCompleted.substring(0, 50)}...';
-    }
-    return tasksCompleted;
+    final tasksCompleted = report['completed']?.toString() ?? '';
+    if (tasksCompleted.isEmpty) return 'No tasks completed';
+    return tasksCompleted.length > 50
+        ? '${tasksCompleted.substring(0, 50)}...'
+        : tasksCompleted;
   }
 
   void _showReportDetails(Map<String, dynamic> report) {
@@ -249,8 +151,7 @@ class _ReportHistoryScreenState extends State<ReportHistoryScreen> {
               _buildSectionTitle('Issues'),
               const SizedBox(height: 8),
               _buildDetailText(report['issues']?.toString() ?? 'N/A'),
-              if (report['students'] != null &&
-                  (report['students'] as List).isNotEmpty) ...[
+              if (report['students'] != null && (report['students'] is List && report['students'].isNotEmpty)) ...[
                 const SizedBox(height: 24),
                 _buildSectionTitle('Students'),
                 const SizedBox(height: 16),
@@ -262,25 +163,16 @@ class _ReportHistoryScreenState extends State<ReportHistoryScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          _buildDetailRow(
-                            'Name',
-                            student['name']?.toString() ?? 'N/A',
-                          ),
+                          _buildDetailRow('Name', student['name']),
                           const SizedBox(height: 8),
-                          _buildDetailRow(
-                            'Topic',
-                            student['topic']?.toString() ?? 'N/A',
-                          ),
+                          _buildDetailRow('Topic', student['topic']),
                           const SizedBox(height: 8),
-                          _buildDetailRow(
-                            'Time',
-                            student['time']?.toString() ?? 'N/A',
-                          ),
+                          _buildDetailRow('Time', student['time']),
                         ],
                       ),
                     ),
                   );
-                }).toList(),
+                }).toList()
               ],
               const SizedBox(height: 32),
             ],
@@ -298,22 +190,19 @@ class _ReportHistoryScreenState extends State<ReportHistoryScreen> {
           width: 120,
           child: Text(
             label,
-            style: GoogleFonts.poppins(
-              fontWeight: FontWeight.bold,
-              fontSize: 14,
-            ),
+            style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 14),
           ),
         ),
-        Expanded(child: Text(value, style: GoogleFonts.poppins(fontSize: 14))),
+        Expanded(
+          child: Text(value, style: GoogleFonts.poppins(fontSize: 14)),
+        ),
       ],
     );
   }
 
   Widget _buildSectionTitle(String title) {
-    return Text(
-      title,
-      style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold),
-    );
+    return Text(title,
+        style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold));
   }
 
   Widget _buildDetailText(String text) {
@@ -333,13 +222,10 @@ class _ReportHistoryScreenState extends State<ReportHistoryScreen> {
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Colors.white,
-        title: Text(
-          'Report History',
-          style: GoogleFonts.poppins(
-            fontWeight: FontWeight.bold,
-            color: Theme.of(context).colorScheme.onSurface,
-          ),
-        ),
+        title: Text('Report History',
+            style: GoogleFonts.poppins(
+                fontWeight: FontWeight.bold,
+                color: Theme.of(context).colorScheme.onSurface)),
         elevation: 0,
       ),
       body: Container(
@@ -347,163 +233,65 @@ class _ReportHistoryScreenState extends State<ReportHistoryScreen> {
         child: _isLoading
             ? const Center(child: CircularProgressIndicator())
             : _errorMessage != null
-            ? Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(24.0),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(24),
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          gradient: AcadenoTheme.heroGradient,
-                        ),
-                        child: const Icon(
-                          Icons.error_outline,
-                          size: 48,
-                          color: Colors.white,
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        'Error Loading Reports',
+                ? Center(
+                    child: Text(_errorMessage!,
                         style: GoogleFonts.poppins(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        _errorMessage!,
-                        textAlign: TextAlign.center,
-                        style: GoogleFonts.poppins(
-                          fontSize: 14,
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-                      ElevatedButton.icon(
-                        onPressed: _loadReports,
-                        icon: const Icon(Icons.refresh),
-                        label: const Text('Retry'),
-                      ),
-                    ],
-                  ),
-                ),
-              )
-            : _reports.isEmpty
-            ? Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(24),
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: Theme.of(
-                          context,
-                        ).colorScheme.surfaceVariant.withOpacity(0.6),
-                      ),
-                      child: Icon(
-                        Icons.inbox,
-                        size: 48,
-                        color: Theme.of(context).colorScheme.primary,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      'No reports found',
-                      style: GoogleFonts.poppins(fontSize: 18),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Your submitted reports will appear here',
-                      style: GoogleFonts.poppins(
-                        fontSize: 14,
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                  ],
-                ),
-              )
-            : RefreshIndicator(
-                onRefresh: _loadReports,
-                child: ListView.builder(
-                  padding: const EdgeInsets.all(16.0),
-                  itemCount: _reports.length,
-                  itemBuilder: (context, index) {
-                    final report = _reports[index];
-                    final status = _getStatus(report);
-                    final tasksPreview = _getTasksPreview(report);
-
-                    return Container(
-                      margin: const EdgeInsets.only(bottom: 14),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(24),
-                        color: Theme.of(context).colorScheme.surface,
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.05),
-                            blurRadius: 12,
-                            offset: const Offset(0, 8),
-                          ),
-                        ],
-                      ),
-                      child: ListTile(
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(24),
-                        ),
-                        contentPadding: const EdgeInsets.all(20),
-                        onTap: () => _showReportDetails(report),
-                        title: Text(
-                          _formatDate(report['date']),
-                          style: GoogleFonts.poppins(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                          ),
-                        ),
-                        subtitle: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const SizedBox(height: 8),
-                            Text(
-                              tasksPreview,
-                              style: GoogleFonts.poppins(
-                                fontSize: 14,
-                                color: Theme.of(
-                                  context,
-                                ).colorScheme.onSurfaceVariant,
+                            fontSize: 16, color: Colors.red)),
+                  )
+                : _reports.isEmpty
+                    ? Center(
+                        child: Text('No reports found',
+                            style: GoogleFonts.poppins(fontSize: 16)),
+                      )
+                    : RefreshIndicator(
+                        onRefresh: _loadReports,
+                        child: ListView.builder(
+                          padding: const EdgeInsets.all(16),
+                          itemCount: _reports.length,
+                          itemBuilder: (context, index) {
+                            final report = _reports[index];
+                            return Container(
+                              margin: const EdgeInsets.only(bottom: 14),
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(24),
+                                color: Theme.of(context).colorScheme.surface,
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.05),
+                                    blurRadius: 12,
+                                    offset: const Offset(0, 8),
+                                  ),
+                                ],
                               ),
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ],
-                        ),
-                        trailing: Chip(
-                          label: Text(
-                            status,
-                            style: GoogleFonts.poppins(
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          backgroundColor: status == 'Present'
-                              ? Theme.of(context).colorScheme.tertiaryContainer
-                              : Theme.of(
-                                  context,
-                                ).colorScheme.secondaryContainer,
-                          side: BorderSide(
-                            color: status == 'Present'
-                                ? Theme.of(context).colorScheme.tertiary
-                                : Theme.of(context).colorScheme.secondary,
-                          ),
+                              child: ListTile(
+                                onTap: () => _showReportDetails(report),
+                                contentPadding: const EdgeInsets.all(20),
+                                title: Text(_formatDate(report['date']),
+                                    style: GoogleFonts.poppins(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 16)),
+                                subtitle: Padding(
+                                  padding: const EdgeInsets.only(top: 8),
+                                  child: Text(
+                                    _getTasksPreview(report),
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: GoogleFonts.poppins(fontSize: 14),
+                                  ),
+                                ),
+                                trailing: Chip(
+                                  label: Text(
+                                    _getStatus(report),
+                                    style: GoogleFonts.poppins(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 12),
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
                         ),
                       ),
-                    );
-                  },
-                ),
-              ),
       ),
     );
   }

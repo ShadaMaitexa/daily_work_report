@@ -1,7 +1,8 @@
+import 'package:daily_work_report/services/auth_service.dart';
+import 'package:daily_work_report/supabase_config.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../services/auth_service.dart';
-import '../services/sheets_api.dart';
+
 import '../theme/app_theme.dart';
 import 'home_screen.dart';
 import 'register_screen.dart';
@@ -15,6 +16,8 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
+  final supabase = SupabaseConfig.client;
+
   final _authService = AuthService();
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
@@ -32,146 +35,97 @@ class _LoginScreenState extends State<LoginScreen> {
     _passwordController.dispose();
     super.dispose();
   }
+Future<void> _login() async {
+  if (!_formKey.currentState!.validate()) return;
 
-  Future<void> _login() async {
-    if (!_formKey.currentState!.validate()) {
+  setState(() => _isLoading = true);
+
+  try {
+    final email = _emailController.text.trim().toLowerCase();
+    final password = _passwordController.text.trim();
+
+    if (email.isEmpty || password.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please enter both email and password'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      setState(() => _isLoading = false);
       return;
     }
 
-    setState(() {
-      _isLoading = true;
-    });
+    // ------------------ ADMIN LOGIN ------------------
+    if (email == _adminEmail && password == _adminPassword) {
+      setState(() => _isLoading = false);
 
-    try {
-      // Normalize email and password - trim whitespace and lowercase email
-      final email = _emailController.text.trim().toLowerCase();
-      final password = _passwordController.text.trim();
-
-      if (email.isEmpty || password.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Please enter both email and password'),
-            backgroundColor: Colors.red,
-          ),
-        );
-        setState(() {
-          _isLoading = false;
-        });
-        return;
-      }
-
-      // Check for admin credentials first
-      if (email == _adminEmail && password == _adminPassword) {
-        setState(() {
-          _isLoading = false;
-        });
-        if (!mounted) return;
-
-        // Clear worker data and save admin status
-        await _authService.logout(); // Clear any existing worker data
-        await _authService.saveAdminStatus(true);
-
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (context) => const AdminDashboard()),
-        );
-        return;
-      }
-
-      print('Attempting login with email: $email (length: ${email.length})');
-
-      final result = await SheetsApi.loginWorker(
-        email: email,
-        password: password,
-      );
-
-      print('Login screen - Result: $result');
-
-      setState(() {
-        _isLoading = false;
-      });
+      await _authService.logout(); 
+      await _authService.saveAdminStatus(true);
 
       if (!mounted) return;
-
-      // Check for success - try multiple formats
-      final isSuccess =
-          result['success'] == true ||
-          result['status']?.toString().toLowerCase() == 'success' ||
-          result['status']?.toString().toLowerCase() == 'logged in';
-
-      // Try to get workerId from multiple possible fields
-      final workerIdValue =
-          result['workerId'] ??
-          result['id'] ??
-          result['userId'] ??
-          result['data']?['workerId'] ??
-          result['data']?['id'];
-
-      print('Login success: $isSuccess, workerId: $workerIdValue');
-
-      if (isSuccess && workerIdValue != null) {
-        // Clear admin status and save worker data
-        await _authService.logout(); // Clear any existing admin data
-        await _authService.saveAdminStatus(
-          false,
-        ); // Explicitly set admin to false
-
-        final workerId = int.tryParse(workerIdValue.toString());
-        if (workerId != null) {
-          await _authService.saveWorkerId(workerId);
-          print('Saved workerId: $workerId');
-        } else {
-          print('Warning: Could not parse workerId: $workerIdValue');
-        }
-
-        // Try to get name from multiple possible fields
-        final name =
-            result['name'] ??
-            result['workerName'] ??
-            result['data']?['name'] ??
-            result['data']?['workerName'];
-
-        if (name != null) {
-          await _authService.saveWorkerName(name.toString());
-          print('Saved workerName: $name');
-        }
-
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (context) => const HomeScreen()),
-        );
-      } else {
-        final errorMessage =
-            result['message'] ??
-            result['error'] ??
-            result['msg'] ??
-            'Invalid login credentials. Please check your email and password.';
-
-        print('Login failed: $errorMessage');
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(errorMessage),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 4),
-          ),
-        );
-      }
-    } catch (e) {
-      print('Login exception: $e');
-      setState(() {
-        _isLoading = false;
-      });
-
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Login error: $e'),
-          backgroundColor: Colors.red,
-          duration: const Duration(seconds: 4),
-        ),
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const AdminDashboard()),
       );
+      return;
     }
+
+    // ------------------ SUPABASE LOGIN ------------------
+    final response = await supabase.auth.signInWithPassword(
+      email: email,
+      password: password,
+    );
+
+    final user = response.user;
+
+    if (user == null) {
+      throw Exception("Invalid login credentials");
+    }
+
+    // Get worker profile data from Supabase table
+    final workerData = await supabase
+        .from('workers') // <-- your table name
+        .select()
+        .eq('email', email)
+        .single();
+
+    if (workerData == null) {
+      throw Exception("No worker record found!");
+    }
+
+    final workerId = workerData['id'];
+    final workerName = workerData['name'] ?? 'Worker';
+
+    // Save worker login status & Clear admin if logged before
+    await _authService.logout();
+    await _authService.saveAdminStatus(false);
+    await _authService.saveWorkerId(workerId);
+    await _authService.saveWorkerName(workerName);
+
+    setState(() => _isLoading = false);
+
+    if (!mounted) return;
+
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (_) => const HomeScreen()),
+    );
+
+  } catch (e) {
+    print('Supabase Login Error: $e');
+
+    setState(() => _isLoading = false);
+
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Login failed: $e'),
+        backgroundColor: Colors.red,
+      ),
+    );
   }
+}
+
 
   @override
   Widget build(BuildContext context) {

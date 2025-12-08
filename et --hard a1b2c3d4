@@ -1,0 +1,18 @@
+[33mbbf1bac[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m)[m done
+[33ma16b865[m completed
+[33m466f4b8[m Update hardcoded admin credentials and enhance validation in registration and report forms
+[33m90e03d3[m Remove TODO comment for Google Apps Script Web App URL in SheetsApi
+[33m7143903[m Handle CORS preflight for web by sending form-encoded data in SheetsApi POST requests
+[33m8676096[m Update Google Apps Script Web App URL in SheetsApi for correct API access.
+[33m873118a[m Refactor logo display in Admin Dashboard and Home Screen for improved UI consistency. Replaced Container with ClipOval and SizedBox for better image presentation and layout. Adjusted dimensions for a more uniform appearance across screens.
+[33m5c5ff7e[m Enhance UI components across multiple screens by implementing consistent gradient backgrounds and improving layout structures. Updated Home, Login, Registration, and Report History screens for better visual appeal and user experience. Adjusted color schemes and refined widget properties for improved readability and interaction.
+[33mf39f2e2[m Update app theme gradients for enhanced visual appeal and consistency. Adjusted color values and added gradient stops for hero and aurora backgrounds.
+[33me903a81[m Refactor login and registration screens for improved code readability and consistency. Removed unused methods and streamlined widget structures. Enhanced UI by consolidating style definitions and reducing unnecessary whitespace.
+[33m53e808d[m Update app theme and UI components; add splash screen and logo asset. Refactor main app structure to utilize new theme and improve visual consistency across screens.
+[33mc72c852[m Implement report submission and editing features in Google Apps Script. Added date normalization to prevent duplicate submissions, enhanced error handling for existing reports, and improved report retrieval logic. Updated Flutter app to support admin login and report editing within 48 hours of submission. Refactored report form and history screens for better user experience and data handling.
+[33ma5da42c[m Add Google Apps Script for worker registration, login, report submission, and retrieval. Implemented JSON response handling and improved error messaging. Updated pubspec.yaml to include intl package for date formatting.
+[33mf8c266e[m Add phone number input to registration screen and update API for worker registration
+[33mdefc08c[m Refactor report history screen and sheets API for improved data handling. Updated worker ID retrieval to return a string, enhanced report status determination, and improved report normalization logic. Renamed normalization function for clarity and added sorting to report lists.
+[33m52e52e8[m Enhance user experience by hiding debug banner in main app and updating worker name display in home screen. Added worker name retrieval during login and improved report submission logic. Refactored API calls for better data handling and consistency.
+[33m11ae5ef[m Refactor UI for Admin Dashboard, Home Screen, Login, and Registration Screens with improved styling and layout. Added gradient backgrounds, enhanced input fields, and updated button styles for better user experience.
+[33m6081320[m first commit
