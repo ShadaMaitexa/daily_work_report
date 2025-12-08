@@ -31,20 +31,24 @@ class _ReportHistoryScreenState extends State<ReportHistoryScreen> {
   }
 
   Future<void> _loadReports() async {
+  setState(() {
+    _isLoading = true;
+    _errorMessage = null;
+  });
+
+  final workerId = await _getWorkerId();
+  if (workerId == null) {
     setState(() {
-      _isLoading = true;
-      _errorMessage = null;
+      _isLoading = false;
+      _errorMessage = 'Worker ID not found. Please login again.';
     });
+    return;
+  }
 
-    final workerId = await _getWorkerId();
-    if (workerId == null) {
-      setState(() {
-        _isLoading = false;
-        _errorMessage = 'Worker ID not found. Please login again.';
-      });
-      return;
-    }
+  try {
+    final result = await SheetsApi.getWorkerReports(workerId.toString());
 
+<<<<<<< HEAD
     try {
       final response = await supabase
           .from('daily_reports')
@@ -53,6 +57,35 @@ class _ReportHistoryScreenState extends State<ReportHistoryScreen> {
           .order('date', ascending: false);
 
       if (response.isNotEmpty) {
+=======
+    print('Report History - API Result: $result');
+
+    if (result['success'] == true) {
+      final reportsList = result['reports'];
+      print('Reports list: $reportsList');
+      print('Reports list type: ${reportsList.runtimeType}');
+
+      if (reportsList != null) {
+        if (reportsList is List) {
+          setState(() {
+            _reports = reportsList
+                .whereType<Map<String, dynamic>>()
+                .map((r) => Map<String, dynamic>.from(r))
+                .toList();
+            _isLoading = false;
+            _errorMessage = null;
+          });
+          print('Loaded ${_reports.length} reports');
+        } else {
+          print('Reports is not a List, it is: ${reportsList.runtimeType}');
+          setState(() {
+            _isLoading = false;
+            _errorMessage = 'Unexpected data format received from server.';
+          });
+        }
+      } else {
+        print('Reports list is null');
+>>>>>>> bbf1bacd2ca04c7270ad053f6633e6e980c7e3fa
         setState(() {
           _reports = response.map((e) => Map<String, dynamic>.from(e)).toList();
           _isLoading = false;
@@ -61,15 +94,32 @@ class _ReportHistoryScreenState extends State<ReportHistoryScreen> {
         setState(() {
           _reports = [];
           _isLoading = false;
+<<<<<<< HEAD
         });
       }
     } catch (e) {
+=======
+          _reports = [];
+        });
+      }
+    } else {
+      print('API call was not successful: ${result['message']}');
+>>>>>>> bbf1bacd2ca04c7270ad053f6633e6e980c7e3fa
       setState(() {
         _isLoading = false;
-        _errorMessage = 'Error loading reports: $e';
+        _errorMessage =
+            result['message']?.toString() ??
+            'Failed to load reports. Please try again.';
       });
     }
+  } catch (e) {
+    print('Error loading reports: $e');
+    setState(() {
+      _isLoading = false;
+      _errorMessage = 'Error loading reports: $e';
+    });
   }
+}
 
   String _getStatus(Map<String, dynamic> report) {
     final completed = (report['completed'] ?? '').toString().trim();

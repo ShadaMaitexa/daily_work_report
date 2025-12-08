@@ -16,9 +16,10 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
 
-  // Hardcoded credentials
-  static const String _adminUsername = 'admin';
-  static const String _adminPassword = '1234';
+  // Hardcoded credentials - same as in LoginScreen
+  // Use these credentials to access admin dashboard
+  static const String _adminUsername = 'acadeno@gmail.com';
+  static const String _adminPassword = 'acadeno123';
 
   @override
   void dispose() {
