@@ -103,9 +103,16 @@ class _ReportFormScreenState extends State<ReportFormScreen> {
     });
   }
 
-  Future<int?> _getWorkerId() async {
+  void _removeStudentRow(int index) {
+    setState(() {
+      _studentRows[index].dispose();
+      _studentRows.removeAt(index);
+    });
+  }
+
+  Future<String?> _getWorkerId() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getInt('workerId');
+    return prefs.getString('workerId');
   }
 
   Future<String?> _getWorkerName() async {
@@ -120,7 +127,7 @@ class _ReportFormScreenState extends State<ReportFormScreen> {
       return;
     }
 
-    final result = await ReportServiceSupabase.checkTodayStatus(workerId: workerId.toString());
+    final result = await ReportServiceSupabase.checkTodayStatus(workerId: workerId);
 
     setState(() {
       _hasSubmittedToday = result['status'] == 'submitted';
@@ -134,7 +141,10 @@ class _ReportFormScreenState extends State<ReportFormScreen> {
     final workerId = await _getWorkerId();
     if (workerId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Worker ID missing. Please login again.'), backgroundColor: Colors.red),
+        const SnackBar(
+          content: Text('Worker ID missing. Please login again.'),
+          backgroundColor: Colors.red,
+        ),
       );
       return;
     }
@@ -163,35 +173,367 @@ class _ReportFormScreenState extends State<ReportFormScreen> {
       'issues': _issuesController.text.trim(),
       'students': students,
       'date': (isEditing ? widget.reportToEdit!['date'] : DateTime.now().toIso8601String().split('T').first),
-      'worker_id': workerId.toString(),
+      'worker_id': workerId,
       'worker_name': workerName ?? '',
     };
 
-    final result = isEditing
-        ? await ReportServiceSupabase.updateReport(workerId: workerId.toString(), data: reportData)
-        : await ReportServiceSupabase.submitReport(workerId: workerId.toString(), data: reportData);
+    try {
+      final result = isEditing
+          ? await ReportServiceSupabase.updateReport(workerId: workerId, data: reportData)
+          : await ReportServiceSupabase.submitReport(workerId: workerId, data: reportData);
 
-    setState(() => _isLoading = false);
+      setState(() => _isLoading = false);
 
-    if (result['success'] == true) {
+      if (result['success'] == true) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(isEditing ? 'Report updated!' : 'Report submitted!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        Navigator.pop(context);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(result['message'] ?? 'Something went wrong'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      setState(() => _isLoading = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(isEditing ? 'Report updated!' : 'Report submitted!'), backgroundColor: Colors.green),
-      );
-      Navigator.pop(context);
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(result['message'] ?? 'Something went wrong'), backgroundColor: Colors.red),
+        SnackBar(
+          content: Text('Error: $e'),
+          backgroundColor: Colors.red,
+        ),
       );
     }
+  }
+
+  InputDecoration _fieldDecoration(String label, IconData icon) {
+    return InputDecoration(
+      labelText: label,
+      prefixIcon: Icon(icon),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(
+          color: Theme.of(context).colorScheme.primary,
+          width: 2,
+        ),
+      ),
+      filled: true,
+      fillColor: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+    );
+  }
+
+  Future<bool> _hasSubmittedTodayCheck(String workerId) async {
+    final result = await ReportServiceSupabase.checkTodayStatus(workerId: workerId);
+    if (result['success'] == true) {
+      final report = result['report'];
+      if (report != null) {
+        return true;
+      }
+      final status = result['status']?.toString().toLowerCase();
+      return status == 'submitted';
+    }
+    return false;
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.reportToEdit != null ? "Edit Report" : "Submit Report"),
+        title: Text(
+          widget.reportToEdit != null ? 'Edit Report' : 'Submit Today Report',
+          style: GoogleFonts.poppins(
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
+        ),
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(gradient: AcadenoTheme.heroGradient),
+        ),
       ),
-      body: Center(child: Text("UI unchanged — backend migrated successfully.")),
+      body: Container(
+        decoration: const BoxDecoration(gradient: AcadenoTheme.auroraGradient),
+        child: SafeArea(
+          child: _isCheckingSubmission
+              ? const Center(child: CircularProgressIndicator())
+              : _hasSubmittedToday
+                  ? Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(24.0),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(24),
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                gradient: AcadenoTheme.heroGradient,
+                              ),
+                              child: const Icon(
+                                Icons.check_rounded,
+                                size: 60,
+                                color: Colors.white,
+                              ),
+                            ),
+                            const SizedBox(height: 24),
+                            Text(
+                              'Report Already Submitted',
+                              style: GoogleFonts.poppins(
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              'You have already submitted today\'s report.\nOnly one submission per day is allowed.',
+                              textAlign: TextAlign.center,
+                              style: GoogleFonts.poppins(
+                                fontSize: 16,
+                                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                            const SizedBox(height: 32),
+                            ElevatedButton.icon(
+                              onPressed: () => Navigator.of(context).pop(),
+                              icon: const Icon(Icons.arrow_back),
+                              label: const Text('Go Back'),
+                            ),
+                          ],
+                        ),
+                      ),
+                    )
+                  : SingleChildScrollView(
+                      padding: const EdgeInsets.all(24.0),
+                      child: Form(
+                        key: _formKey,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(20),
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(28),
+                                gradient: AcadenoTheme.heroGradient,
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Theme.of(context).colorScheme.primary.withOpacity(0.2),
+                                    blurRadius: 18,
+                                    offset: const Offset(0, 10),
+                                  ),
+                                ],
+                              ),
+                              child: Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(16),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white.withOpacity(0.18),
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: Image.asset(
+                                      'assets/logo.png',
+                                      height: 42,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 18),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          widget.reportToEdit != null
+                                              ? 'Update today\'s progress'
+                                              : 'Share today\'s impact',
+                                          style: GoogleFonts.poppins(
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.w600,
+                                            color: Colors.white,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 6),
+                                        Text(
+                                          'Give us a quick look into your achievements and next moves.',
+                                          style: GoogleFonts.poppins(
+                                            color: Colors.white70,
+                                            fontSize: 13,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 28),
+                            TextFormField(
+                              controller: _tasksCompletedController,
+                              decoration: _fieldDecoration(
+                                'Tasks Completed',
+                                Icons.check_circle,
+                              ),
+                              maxLines: 5,
+                              validator: (value) {
+                                if (value == null || value.isEmpty) {
+                                  return 'Please enter tasks completed';
+                                }
+                                return null;
+                              },
+                            ),
+                            const SizedBox(height: 16),
+                            TextFormField(
+                              controller: _tasksInProgressController,
+                              decoration: _fieldDecoration(
+                                'Tasks In Progress',
+                                Icons.work,
+                              ),
+                              maxLines: 5,
+                              validator: (value) {
+                                if (value == null || value.isEmpty) {
+                                  return 'Please enter tasks in progress';
+                                }
+                                return null;
+                              },
+                            ),
+                            const SizedBox(height: 16),
+                            TextFormField(
+                              controller: _nextStepsController,
+                              decoration: _fieldDecoration(
+                                'Next Steps',
+                                Icons.arrow_forward,
+                              ),
+                              maxLines: 5,
+                              validator: (value) {
+                                if (value == null || value.isEmpty) {
+                                  return 'Please enter next steps';
+                                }
+                                return null;
+                              },
+                            ),
+                            const SizedBox(height: 16),
+                            TextFormField(
+                              controller: _issuesController,
+                              decoration: _fieldDecoration('Issues', Icons.warning),
+                              maxLines: 5,
+                              validator: (value) {
+                                if (value == null || value.isEmpty) {
+                                  return 'Please enter issues';
+                                }
+                                return null;
+                              },
+                            ),
+                            const SizedBox(height: 32),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  'Students',
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                ElevatedButton.icon(
+                                  onPressed: _addStudentRow,
+                                  icon: const Icon(Icons.add),
+                                  label: const Text('Add Student'),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 16),
+                            ...List.generate(_studentRows.length, (index) {
+                              return Card(
+                                margin: const EdgeInsets.only(bottom: 16),
+                                child: Padding(
+                                  padding: const EdgeInsets.all(16.0),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          Text(
+                                            'Student ${index + 1}',
+                                            style: GoogleFonts.poppins(
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                          if (_studentRows.length > 1)
+                                            IconButton(
+                                              icon: const Icon(
+                                                Icons.delete,
+                                                color: Colors.red,
+                                              ),
+                                              onPressed: () => _removeStudentRow(index),
+                                            ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 8),
+                                      TextFormField(
+                                        controller: _studentRows[index].nameController,
+                                        decoration: _fieldDecoration(
+                                          'Student Name',
+                                          Icons.person,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      TextFormField(
+                                        controller: _studentRows[index].topicController,
+                                        decoration: _fieldDecoration(
+                                          'Topic Taken',
+                                          Icons.book,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      TextFormField(
+                                        controller: _studentRows[index].timeController,
+                                        decoration: _fieldDecoration(
+                                          'Time',
+                                          Icons.access_time,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            }),
+                            const SizedBox(height: 32),
+                            ElevatedButton(
+                              onPressed: (_isLoading || (widget.reportToEdit == null && _hasSubmittedToday))
+                                  ? null
+                                  : _submitReport,
+                              style: ElevatedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(vertical: 16),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                              child: _isLoading
+                                  ? const SizedBox(
+                                      height: 20,
+                                      width: 20,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                      ),
+                                    )
+                                  : Text(
+                                      widget.reportToEdit != null ? 'Update Report' : 'Submit Report',
+                                      style: const TextStyle(fontSize: 16),
+                                    ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+        ),
+      ),
     );
   }
 }

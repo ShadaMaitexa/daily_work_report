@@ -1,27 +1,32 @@
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
 class AuthService {
+  final supabase = Supabase.instance.client;
+
   static const String _workerIdKey = 'workerId';
   static const String _workerNameKey = 'workerName';
   static const String _isAdminKey = 'isAdmin';
 
-  Future<void> saveWorkerId(int workerId) async {
+  // Get worker ID as STRING (important!)
+  Future<String?> getWorkerId() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt(_workerIdKey, workerId);
-  }
-
-  Future<void> saveWorkerName(String name) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_workerNameKey, name);
-  }
-
-  Future<int?> getWorkerId() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getInt(_workerIdKey);
+    return prefs.getString(_workerIdKey); // Returns String, not int
   }
 
   Future<String?> getWorkerName() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString(_workerNameKey);
+  }
+
+  Future<void> saveWorkerId(String workerId) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_workerIdKey, workerId);
+  }
+
+  Future<void> saveWorkerName(String name) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_workerNameKey, name);
   }
 
   Future<void> saveAdminStatus(bool isAdmin) async {
@@ -35,10 +40,8 @@ class AuthService {
   }
 
   Future<void> logout() async {
+    await supabase.auth.signOut();
     final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_workerIdKey);
-    await prefs.remove(_workerNameKey);
-    await prefs.remove(_isAdminKey);
+    await prefs.clear();
   }
 }
-

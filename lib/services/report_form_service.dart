@@ -12,16 +12,16 @@ class ReportServiceSupabase {
       
       // Check if already submitted
       final existing = await supabase
-          .from('daily_reports')
+          .from('reports')
           .select()
           .eq('worker_id', workerId)
           .eq('date', date);
 
       if (existing.isNotEmpty) {
-        return {'success': false, 'alreadyExists': true};
+        return {'success': false, 'message': 'Already submitted today'};
       }
 
-      final response = await supabase.from('daily_reports').insert(data).select();
+      final response = await supabase.from('reports').insert(data).select();
 
       return {'success': true, 'data': response.first};
     } catch (e) {
@@ -37,7 +37,7 @@ class ReportServiceSupabase {
       final date = data['date'];
 
       final response = await supabase
-          .from('daily_reports')
+          .from('reports')
           .update(data)
           .eq('worker_id', workerId)
           .eq('date', date)
@@ -56,7 +56,7 @@ class ReportServiceSupabase {
       final today = DateTime.now().toIso8601String().split('T').first;
 
       final report = await supabase
-          .from('daily_reports')
+          .from('reports')
           .select()
           .eq('worker_id', workerId)
           .eq('date', today);

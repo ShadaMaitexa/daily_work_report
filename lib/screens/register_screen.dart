@@ -2,7 +2,6 @@ import 'package:daily_work_report/supabase_config.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
-
 import '../theme/app_theme.dart';
 import 'login_screen.dart';
 
@@ -14,7 +13,7 @@ class RegisterScreen extends StatefulWidget {
 }
 
 class _RegisterScreenState extends State<RegisterScreen> {
-    final supabase = SupabaseConfig.client;
+  final supabase = SupabaseConfig.client;
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
@@ -31,50 +30,114 @@ class _RegisterScreenState extends State<RegisterScreen> {
     _passwordController.dispose();
     super.dispose();
   }
-Future<void> _register() async {
+
+ Future<void> _register() async {
   if (!_formKey.currentState!.validate()) return;
 
   setState(() => _isLoading = true);
 
   try {
-    final response = await supabase.auth.signUp(
-      email: _emailController.text.trim(),
-      password: _passwordController.text.trim(),
-      data: {
-        'name': _nameController.text.trim(),
-        'phone': _phoneController.text.trim(),
-      },
-    );
+    final name = _nameController.text.trim();
+    final email = _emailController.text.trim().toLowerCase();
+    final phone = _phoneController.text.trim();
+    final password = _passwordController.text.trim();
 
+    print('🚀 SIMPLE Registration for: $email');
+
+    // METHOD 1: First try to create worker WITHOUT auth
+    print('👨‍💼 Creating worker record first...');
+    try {
+      // Call our simple SQL function
+      final workerId = await supabase.rpc(
+        'simple_register_worker',
+        params: {
+          'worker_name': name,
+          'worker_email': email,
+          'worker_phone': phone,
+        },
+      );
+      
+      print('✅ Worker created with ID: $workerId');
+    } catch (e) {
+      print('⚠️ SQL function failed, trying direct insert: $e');
+      
+      // Direct insert
+      await supabase.from('workers').insert({
+        'name': name,
+        'email': email,
+        'phone': phone,
+      });
+      print('✅ Worker created via direct insert');
+    }
+
+    // METHOD 2: Now create auth user SEPARATELY
+    print('🔐 Creating auth user (separate)...');
+    try {
+      final authResponse = await supabase.auth.signUp(
+        email: email,
+        password: password,
+      );
+
+      if (authResponse.user != null) {
+        print('✅ Auth user created: ${authResponse.user!.id}');
+        
+        // Update worker with auth_id if we can
+        try {
+          await supabase
+              .from('workers')
+              .update({'auth_id': authResponse.user!.id})
+              .eq('email', email);
+          print('✅ Worker updated with auth_id');
+        } catch (e) {
+          print('⚠️ Could not update auth_id: $e');
+        }
+      }
+    } catch (authError) {
+      print('⚠️ Auth creation error (but worker exists): $authError');
+      print('ℹ️ User can try to login and auth will be created');
+    }
+
+    // SUCCESS - even if auth failed, worker exists
     if (!mounted) return;
 
-    if (response.user != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Registration successful!'),
-          backgroundColor: Colors.green,
-        ),
-      );
-
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const LoginScreen()),
-      );
-    }
-  } catch (e) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(e.toString()),
-        backgroundColor: Colors.red,
+      const SnackBar(
+        content: Text('Registration submitted! You can now try to login.'),
+        backgroundColor: Colors.green,
+        duration: Duration(seconds: 4),
       ),
     );
+
+    // Clear and navigate
+    _nameController.clear();
+    _emailController.clear();
+    _phoneController.clear();
+    _passwordController.clear();
+
+    await Future.delayed(const Duration(seconds: 2));
+    
+    if (!mounted) return;
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (context) => const LoginScreen()),
+    );
+
+  } catch (e) {
+    print('❌ Registration error: $e');
+    
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Registration issue: ${e.toString()}'),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 4),
+        ),
+      );
+    }
+  } finally {
+    setState(() => _isLoading = false);
   }
-
-  setState(() => _isLoading = false);
-}
-
-
-  @override
+} @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     return Scaffold(
@@ -122,7 +185,7 @@ Future<void> _register() async {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'Let’s get you started with data-rich daily reports.',
+                      'Let\'s get you started with data-rich daily reports.',
                       textAlign: TextAlign.center,
                       style: GoogleFonts.poppins(
                         color: colorScheme.onSurfaceVariant,
@@ -143,6 +206,9 @@ Future<void> _register() async {
                         if (value == null || value.isEmpty) {
                           return 'Please enter your name';
                         }
+                        if (value.length < 2) {
+                          return 'Name must be at least 2 characters';
+                        }
                         return null;
                       },
                     ),
@@ -161,14 +227,8 @@ Future<void> _register() async {
                         if (value == null || value.isEmpty) {
                           return 'Please enter your email';
                         }
-                        if (!value.contains('@') || !value.contains('.')) {
-                          return 'Please enter a valid email (e.g., user@example.com)';
-                        }
-                        final parts = value.split('@');
-                        if (parts.length != 2 ||
-                            parts[0].isEmpty ||
-                            parts[1].isEmpty) {
-                          return 'Please enter a valid email format';
+                        if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(value)) {
+                          return 'Please enter a valid email';
                         }
                         return null;
                       },
@@ -189,9 +249,8 @@ Future<void> _register() async {
                         if (value == null || value.isEmpty) {
                           return 'Please enter your phone number';
                         }
-                        final digitsOnly = value.replaceAll(RegExp(r'\D'), '');
-                        if (digitsOnly.length != 10) {
-                          return 'Phone number must be exactly 10 digits';
+                        if (value.length != 10) {
+                          return 'Phone number must be 10 digits';
                         }
                         return null;
                       },

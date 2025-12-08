@@ -26,9 +26,9 @@ class _ReportHistoryScreenState extends State<ReportHistoryScreen> {
   }
 
   Future<String?> _getWorkerId() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getInt('workerId')?.toString();
-  }
+  final prefs = await SharedPreferences.getInstance();
+  return prefs.getString('workerId'); // Changed from getInt to getString
+}
 
   Future<void> _loadReports() async {
     setState(() {
@@ -47,9 +47,9 @@ class _ReportHistoryScreenState extends State<ReportHistoryScreen> {
 
     try {
       final response = await supabase
-          .from('daily_reports')
+          .from('reports')
           .select()
-          .eq('worker_id', workerId)
+          .eq('user_id', workerId)
           .order('date', ascending: false);
 
       if (response.isNotEmpty) {
@@ -81,7 +81,9 @@ class _ReportHistoryScreenState extends State<ReportHistoryScreen> {
 
     try {
       final parsed = DateTime.parse(dateValue.toString());
-      return DateFormat('d MMMM yyyy').format(DateTime(parsed.year, parsed.month, parsed.day));
+      return DateFormat(
+        'd MMMM yyyy',
+      ).format(DateTime(parsed.year, parsed.month, parsed.day));
     } catch (_) {
       return dateValue.toString();
     }
@@ -151,7 +153,9 @@ class _ReportHistoryScreenState extends State<ReportHistoryScreen> {
               _buildSectionTitle('Issues'),
               const SizedBox(height: 8),
               _buildDetailText(report['issues']?.toString() ?? 'N/A'),
-              if (report['students'] != null && (report['students'] is List && report['students'].isNotEmpty)) ...[
+              if (report['students'] != null &&
+                  (report['students'] is List &&
+                      report['students'].isNotEmpty)) ...[
                 const SizedBox(height: 24),
                 _buildSectionTitle('Students'),
                 const SizedBox(height: 16),
@@ -172,7 +176,7 @@ class _ReportHistoryScreenState extends State<ReportHistoryScreen> {
                       ),
                     ),
                   );
-                }).toList()
+                }).toList(),
               ],
               const SizedBox(height: 32),
             ],
@@ -190,19 +194,22 @@ class _ReportHistoryScreenState extends State<ReportHistoryScreen> {
           width: 120,
           child: Text(
             label,
-            style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 14),
+            style: GoogleFonts.poppins(
+              fontWeight: FontWeight.bold,
+              fontSize: 14,
+            ),
           ),
         ),
-        Expanded(
-          child: Text(value, style: GoogleFonts.poppins(fontSize: 14)),
-        ),
+        Expanded(child: Text(value, style: GoogleFonts.poppins(fontSize: 14))),
       ],
     );
   }
 
   Widget _buildSectionTitle(String title) {
-    return Text(title,
-        style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold));
+    return Text(
+      title,
+      style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold),
+    );
   }
 
   Widget _buildDetailText(String text) {
@@ -222,10 +229,13 @@ class _ReportHistoryScreenState extends State<ReportHistoryScreen> {
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Colors.white,
-        title: Text('Report History',
-            style: GoogleFonts.poppins(
-                fontWeight: FontWeight.bold,
-                color: Theme.of(context).colorScheme.onSurface)),
+        title: Text(
+          'Report History',
+          style: GoogleFonts.poppins(
+            fontWeight: FontWeight.bold,
+            color: Theme.of(context).colorScheme.onSurface,
+          ),
+        ),
         elevation: 0,
       ),
       body: Container(
@@ -233,65 +243,72 @@ class _ReportHistoryScreenState extends State<ReportHistoryScreen> {
         child: _isLoading
             ? const Center(child: CircularProgressIndicator())
             : _errorMessage != null
-                ? Center(
-                    child: Text(_errorMessage!,
-                        style: GoogleFonts.poppins(
-                            fontSize: 16, color: Colors.red)),
-                  )
-                : _reports.isEmpty
-                    ? Center(
-                        child: Text('No reports found',
-                            style: GoogleFonts.poppins(fontSize: 16)),
-                      )
-                    : RefreshIndicator(
-                        onRefresh: _loadReports,
-                        child: ListView.builder(
-                          padding: const EdgeInsets.all(16),
-                          itemCount: _reports.length,
-                          itemBuilder: (context, index) {
-                            final report = _reports[index];
-                            return Container(
-                              margin: const EdgeInsets.only(bottom: 14),
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(24),
-                                color: Theme.of(context).colorScheme.surface,
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withOpacity(0.05),
-                                    blurRadius: 12,
-                                    offset: const Offset(0, 8),
-                                  ),
-                                ],
-                              ),
-                              child: ListTile(
-                                onTap: () => _showReportDetails(report),
-                                contentPadding: const EdgeInsets.all(20),
-                                title: Text(_formatDate(report['date']),
-                                    style: GoogleFonts.poppins(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 16)),
-                                subtitle: Padding(
-                                  padding: const EdgeInsets.only(top: 8),
-                                  child: Text(
-                                    _getTasksPreview(report),
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: GoogleFonts.poppins(fontSize: 14),
-                                  ),
-                                ),
-                                trailing: Chip(
-                                  label: Text(
-                                    _getStatus(report),
-                                    style: GoogleFonts.poppins(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 12),
-                                  ),
-                                ),
-                              ),
-                            );
-                          },
+            ? Center(
+                child: Text(
+                  _errorMessage!,
+                  style: GoogleFonts.poppins(fontSize: 16, color: Colors.red),
+                ),
+              )
+            : _reports.isEmpty
+            ? Center(
+                child: Text(
+                  'No reports found',
+                  style: GoogleFonts.poppins(fontSize: 16),
+                ),
+              )
+            : RefreshIndicator(
+                onRefresh: _loadReports,
+                child: ListView.builder(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: _reports.length,
+                  itemBuilder: (context, index) {
+                    final report = _reports[index];
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 14),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(24),
+                        color: Theme.of(context).colorScheme.surface,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.05),
+                            blurRadius: 12,
+                            offset: const Offset(0, 8),
+                          ),
+                        ],
+                      ),
+                      child: ListTile(
+                        onTap: () => _showReportDetails(report),
+                        contentPadding: const EdgeInsets.all(20),
+                        title: Text(
+                          _formatDate(report['date']),
+                          style: GoogleFonts.poppins(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                        ),
+                        subtitle: Padding(
+                          padding: const EdgeInsets.only(top: 8),
+                          child: Text(
+                            _getTasksPreview(report),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.poppins(fontSize: 14),
+                          ),
+                        ),
+                        trailing: Chip(
+                          label: Text(
+                            _getStatus(report),
+                            style: GoogleFonts.poppins(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
+                            ),
+                          ),
                         ),
                       ),
+                    );
+                  },
+                ),
+              ),
       ),
     );
   }

@@ -2,6 +2,7 @@ import 'package:daily_work_report/services/auth_service.dart';
 import 'package:daily_work_report/supabase_config.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:supabase_flutter/supabase_flutter.dart'; // ADD THIS IMPORT
 
 import '../theme/app_theme.dart';
 import 'home_screen.dart';
@@ -44,24 +45,15 @@ Future<void> _login() async {
     final email = _emailController.text.trim().toLowerCase();
     final password = _passwordController.text.trim();
 
-    if (email.isEmpty || password.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please enter both email and password'),
-          backgroundColor: Colors.red,
-        ),
-      );
-      setState(() => _isLoading = false);
-      return;
-    }
+    print('🔐 SIMPLE Login for: $email');
 
-    // ------------------ ADMIN LOGIN ------------------
+    // ADMIN LOGIN
     if (email == _adminEmail && password == _adminPassword) {
-      setState(() => _isLoading = false);
-
-      await _authService.logout(); 
+      print('👑 Admin login');
       await _authService.saveAdminStatus(true);
-
+      await _authService.saveWorkerId('admin');
+      await _authService.saveWorkerName('Admin');
+      
       if (!mounted) return;
       Navigator.pushReplacement(
         context,
@@ -70,63 +62,138 @@ Future<void> _login() async {
       return;
     }
 
-    // ------------------ SUPABASE LOGIN ------------------
-    final response = await supabase.auth.signInWithPassword(
-      email: email,
-      password: password,
-    );
+    // STEP 1: Try normal login
+    try {
+      final response = await supabase.auth.signInWithPassword(
+        email: email,
+        password: password,
+      );
 
-    final user = response.user;
-
-    if (user == null) {
-      throw Exception("Invalid login credentials");
+      if (response.user != null) {
+        print('✅ Auth successful: ${response.user!.id}');
+        await _handleWorkerLookup(response.user!, email);
+        return;
+      }
+    } catch (authError) {
+      print('⚠️ Auth login failed: $authError');
     }
 
-    // Get worker profile data from Supabase table
+    // STEP 2: If auth fails, check if worker exists anyway
+    print('🔍 Checking if worker exists in database...');
     final workerData = await supabase
-        .from('workers') // <-- your table name
-        .select()
+        .from('workers')
+        .select('id, name, email, auth_id')
         .eq('email', email)
-        .single();
+        .maybeSingle();
 
-    if (workerData == null) {
-      throw Exception("No worker record found!");
+    if (workerData != null) {
+      print('✅ Worker found: ${workerData['id']}');
+      
+      // Try to create auth account for this worker
+      print('🔄 Attempting to create auth account...');
+      try {
+        final authResponse = await supabase.auth.signUp(
+          email: email,
+          password: password,
+        );
+        
+        if (authResponse.user != null) {
+          // Update worker with auth_id
+          await supabase
+              .from('workers')
+              .update({'auth_id': authResponse.user!.id})
+              .eq('id', workerData['id']);
+          
+          print('✅ Auth created and linked to worker');
+        }
+      } catch (e) {
+        print('⚠️ Could not create auth: $e');
+      }
+      
+      // Login with worker data even if auth creation failed
+      await _completeLogin(workerData, workerData['auth_id']?.toString() ?? '');
+      return;
     }
 
-    final workerId = workerData['id'];
-    final workerName = workerData['name'] ?? 'Worker';
-
-    // Save worker login status & Clear admin if logged before
-    await _authService.logout();
-    await _authService.saveAdminStatus(false);
-    await _authService.saveWorkerId(workerId);
-    await _authService.saveWorkerName(workerName);
-
-    setState(() => _isLoading = false);
-
-    if (!mounted) return;
-
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (_) => const HomeScreen()),
-    );
+    // STEP 3: No worker found - suggest registration
+    throw Exception('No account found. Please register first.');
 
   } catch (e) {
-    print('Supabase Login Error: $e');
-
+    print('❌ Login error: $e');
     setState(() => _isLoading = false);
 
     if (!mounted) return;
+    
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('Login failed: $e'),
+        content: Text(
+          e.toString().contains('No account found') 
+            ? 'Account not found. Please register first.'
+            : 'Login failed. Please check credentials.'
+        ),
         backgroundColor: Colors.red,
       ),
     );
   }
 }
 
+Future<void> _handleWorkerLookup(User user, String email) async {
+  // Try to find worker by auth_id
+  var workerData = await supabase
+      .from('workers')
+      .select('id, name, email')
+      .eq('auth_id', user.id)
+      .maybeSingle();
 
+  if (workerData == null) {
+    // Try by email
+    workerData = await supabase
+        .from('workers')
+        .select('id, name, email')
+        .eq('email', email)
+        .maybeSingle();
+    
+    if (workerData == null) {
+      // Create worker on the fly
+      print('📝 Creating worker profile on login...');
+      final response = await supabase.from('workers').insert({
+        'auth_id': user.id,
+        'name': 'Worker',
+        'email': email,
+        'phone': '',
+      }).select('id, name').single();
+      
+      workerData = response;
+    } else {
+      // Update existing worker with auth_id
+      await supabase
+          .from('workers')
+          .update({'auth_id': user.id})
+          .eq('id', workerData['id']);
+    }
+  }
+
+  await _completeLogin(workerData, user.id);
+}
+
+Future<void> _completeLogin(Map<String, dynamic> workerData, String authId) async {
+  final workerId = workerData['id'].toString();
+  final workerName = workerData['name']?.toString() ?? 'Worker';
+
+  print('🎉 Login successful! ID: $workerId, Name: $workerName');
+
+  await _authService.saveAdminStatus(false);
+  await _authService.saveWorkerId(workerId);
+  await _authService.saveWorkerName(workerName);
+
+  setState(() => _isLoading = false);
+
+  if (!mounted) return;
+  Navigator.pushReplacement(
+    context,
+    MaterialPageRoute(builder: (_) => const HomeScreen()),
+  );
+}
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;

@@ -20,7 +20,7 @@ class _HomeScreenState extends State<HomeScreen> {
   final supabase = SupabaseConfig.client;
   final _authService = AuthService();
 
-  int? _workerId;
+  String? _workerId;
   String? _workerName;
 
   String _statusMessage = 'Checking status...';
@@ -32,24 +32,24 @@ class _HomeScreenState extends State<HomeScreen> {
     _loadUserData();
   }
 
-  Future<void> _loadUserData() async {
-    final id = await _authService.getWorkerId();
-    final name = await _authService.getWorkerName();
+ Future<void> _loadUserData() async {
+  final id = await _authService.getWorkerId();
+  final name = await _authService.getWorkerName();
 
+  setState(() {
+    _workerId = id; // This is now a String
+    _workerName = name ?? 'Worker';
+  });
+
+  if (id != null) {
+    _fetchTodayStatus();
+  } else {
     setState(() {
-      _workerId = id;
-      _workerName = name ?? 'Worker';
+      _statusMessage = 'Not Logged In';
+      _isStatusLoading = false;
     });
-
-    if (id != null) {
-      _fetchTodayStatus();
-    } else {
-      setState(() {
-        _statusMessage = 'Not Logged In';
-        _isStatusLoading = false;
-      });
-    }
   }
+}
 
   Future<void> _fetchTodayStatus() async {
     setState(() => _isStatusLoading = true);
