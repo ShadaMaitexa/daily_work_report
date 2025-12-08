@@ -7,19 +7,26 @@ import '../theme/app_theme.dart';
 
 class StudentRow {
   final TextEditingController nameController;
-  final TextEditingController activityController;
+  final TextEditingController topicController;
+  final TextEditingController timeController;
 
-  StudentRow({required this.nameController, required this.activityController});
+  StudentRow({
+    required this.nameController,
+    required this.topicController,
+    required this.timeController,
+  });
 
   void dispose() {
     nameController.dispose();
-    activityController.dispose();
+    topicController.dispose();
+    timeController.dispose();
   }
 
   Map<String, String> toMap() {
     return {
       'name': nameController.text.trim(),
-      'activity': activityController.text.trim(),
+      'topic': topicController.text.trim(),
+      'time': timeController.text.trim(),
     };
   }
 }
@@ -57,26 +64,11 @@ class _ReportFormScreenState extends State<ReportFormScreen> {
       final students = widget.reportToEdit!['students'];
       if (students is List && students.isNotEmpty) {
         for (var student in students) {
-<<<<<<< HEAD
           _studentRows.add(StudentRow(
             nameController: TextEditingController(text: student['name']),
             topicController: TextEditingController(text: student['topic']),
             timeController: TextEditingController(text: student['time']),
           ));
-=======
-          final row = StudentRow(
-            nameController: TextEditingController(
-              text: student['name']?.toString() ?? '',
-            ),
-            activityController: TextEditingController(
-              text:
-                  student['activity']?.toString() ??
-                  student['topic']?.toString() ??
-                  '',
-            ),
-          );
-          _studentRows.add(row);
->>>>>>> bbf1bacd2ca04c7270ad053f6633e6e980c7e3fa
         }
       } else {
         _addStudentRow();
@@ -103,20 +95,11 @@ class _ReportFormScreenState extends State<ReportFormScreen> {
 
   void _addStudentRow() {
     setState(() {
-<<<<<<< HEAD
       _studentRows.add(StudentRow(
         nameController: TextEditingController(),
         topicController: TextEditingController(),
         timeController: TextEditingController(),
       ));
-=======
-      _studentRows.add(
-        StudentRow(
-          nameController: TextEditingController(),
-          activityController: TextEditingController(),
-        ),
-      );
->>>>>>> bbf1bacd2ca04c7270ad053f6633e6e980c7e3fa
     });
   }
 
@@ -206,347 +189,9 @@ class _ReportFormScreenState extends State<ReportFormScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-<<<<<<< HEAD
         title: Text(widget.reportToEdit != null ? "Edit Report" : "Submit Report"),
-=======
-        title: Text(
-          widget.reportToEdit != null ? 'Edit Report' : 'Submit Today Report',
-          style: GoogleFonts.poppins(
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
-          ),
-        ),
-        flexibleSpace: Container(
-          decoration: const BoxDecoration(gradient: AcadenoTheme.heroGradient),
-        ),
-      ),
-      body: Container(
-        decoration: const BoxDecoration(gradient: AcadenoTheme.auroraGradient),
-        child: SafeArea(
-          child: _isCheckingSubmission
-              ? const Center(child: CircularProgressIndicator())
-              : _hasSubmittedToday
-              ? Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(24.0),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(24),
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            gradient: AcadenoTheme.heroGradient,
-                          ),
-                          child: const Icon(
-                            Icons.check_rounded,
-                            size: 60,
-                            color: Colors.white,
-                          ),
-                        ),
-                        const SizedBox(height: 24),
-                        Text(
-                          'Report Already Submitted',
-                          style: GoogleFonts.poppins(
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          'You have already submitted today\'s report.\nOnly one submission per day is allowed.',
-                          textAlign: TextAlign.center,
-                          style: GoogleFonts.poppins(
-                            fontSize: 16,
-                            color: Theme.of(
-                              context,
-                            ).colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                        const SizedBox(height: 32),
-                        ElevatedButton.icon(
-                          onPressed: () => Navigator.of(context).pop(),
-                          icon: const Icon(Icons.arrow_back),
-                          label: const Text('Go Back'),
-                        ),
-                      ],
-                    ),
-                  ),
-                )
-              : SingleChildScrollView(
-                  padding: const EdgeInsets.all(24.0),
-                  child: Form(
-                    key: _formKey,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(20),
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(28),
-                            gradient: AcadenoTheme.heroGradient,
-                            boxShadow: [
-                              BoxShadow(
-                                color: Theme.of(
-                                  context,
-                                ).colorScheme.primary.withOpacity(0.2),
-                                blurRadius: 18,
-                                offset: const Offset(0, 10),
-                              ),
-                            ],
-                          ),
-                          child: Row(
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.all(16),
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withOpacity(0.18),
-                                  shape: BoxShape.circle,
-                                ),
-                                child: Image.asset(
-                                  'assets/logo.png',
-                                  height: 42,
-                                ),
-                              ),
-                              const SizedBox(width: 18),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      widget.reportToEdit != null
-                                          ? 'Update today\'s progress'
-                                          : 'Share today’s impact',
-                                      style: GoogleFonts.poppins(
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.w600,
-                                        color: Colors.white,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 6),
-                                    Text(
-                                      'Give us a quick look into your achievements and next moves.',
-                                      style: GoogleFonts.poppins(
-                                        color: Colors.white70,
-                                        fontSize: 13,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 28),
-                        TextFormField(
-                          controller: _tasksCompletedController,
-                          decoration: _fieldDecoration(
-                            'Tasks Completed',
-                            Icons.check_circle,
-                          ),
-                          maxLines: 5,
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Please enter tasks completed';
-                            }
-                            return null;
-                          },
-                        ),
-                        const SizedBox(height: 16),
-                        TextFormField(
-                          controller: _tasksInProgressController,
-                          decoration: _fieldDecoration(
-                            'Tasks In Progress',
-                            Icons.work,
-                          ),
-                          maxLines: 5,
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Please enter tasks in progress';
-                            }
-                            return null;
-                          },
-                        ),
-                        const SizedBox(height: 16),
-                        TextFormField(
-                          controller: _nextStepsController,
-                          decoration: _fieldDecoration(
-                            'Next Steps',
-                            Icons.arrow_forward,
-                          ),
-                          maxLines: 5,
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Please enter next steps';
-                            }
-                            return null;
-                          },
-                        ),
-                        const SizedBox(height: 16),
-                        TextFormField(
-                          controller: _issuesController,
-                          decoration: _fieldDecoration('Issues', Icons.warning),
-                          maxLines: 5,
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Please enter issues';
-                            }
-                            return null;
-                          },
-                        ),
-                        const SizedBox(height: 32),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              'Students',
-                              style: GoogleFonts.poppins(
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            ElevatedButton.icon(
-                              onPressed: _addStudentRow,
-                              icon: const Icon(Icons.add),
-                              label: const Text('Add Student'),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 16),
-                        ...List.generate(_studentRows.length, (index) {
-                          return Card(
-                            margin: const EdgeInsets.only(bottom: 16),
-                            child: Padding(
-                              padding: const EdgeInsets.all(16.0),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      Text(
-                                        'Student ${index + 1}',
-                                        style: GoogleFonts.poppins(
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                      if (_studentRows.length > 1)
-                                        IconButton(
-                                          icon: const Icon(
-                                            Icons.delete,
-                                            color: Colors.red,
-                                          ),
-                                          onPressed: () =>
-                                              _removeStudentRow(index),
-                                        ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 8),
-                                  TextFormField(
-                                    controller:
-                                        _studentRows[index].nameController,
-                                    decoration: _fieldDecoration(
-                                      'Student Name',
-                                      Icons.person,
-                                    ),
-                                    validator: (value) {
-                                      if (value != null &&
-                                          value.isNotEmpty &&
-                                          _studentRows[index]
-                                              .activityController
-                                              .text
-                                              .isEmpty) {
-                                        return 'Please enter activity for this student';
-                                      }
-                                      return null;
-                                    },
-                                  ),
-                                  const SizedBox(height: 8),
-                                  TextFormField(
-                                    controller:
-                                        _studentRows[index].activityController,
-                                    decoration: _fieldDecoration(
-                                      'Activity Performed',
-                                      Icons.assignment,
-                                    ),
-                                    maxLines: 3,
-                                    validator: (value) {
-                                      if (value != null &&
-                                          value.isNotEmpty &&
-                                          _studentRows[index]
-                                              .nameController
-                                              .text
-                                              .isEmpty) {
-                                        return 'Please enter student name for this activity';
-                                      }
-                                      return null;
-                                    },
-                                  ),
-                                ],
-                              ),
-                            ),
-                          );
-                        }),
-                        const SizedBox(height: 32),
-                        ElevatedButton(
-                          onPressed:
-                              (_isLoading ||
-                                  (widget.reportToEdit == null &&
-                                      _hasSubmittedToday))
-                              ? null
-                              : _submitReport,
-                          child: _isLoading
-                              ? const SizedBox(
-                                  height: 20,
-                                  width: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                  ),
-                                )
-                              : Text(
-                                  widget.reportToEdit != null
-                                      ? 'Update Report'
-                                      : 'Submit Report',
-                                ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-        ),
->>>>>>> bbf1bacd2ca04c7270ad053f6633e6e980c7e3fa
       ),
       body: Center(child: Text("UI unchanged — backend migrated successfully.")),
     );
   }
-<<<<<<< HEAD
-=======
-
-Future<bool> _hasSubmittedTodayCheck(int workerId) async {
-  final result = await SheetsApi.checkTodayStatus(workerId.toString());
-
-  if (result['success'] == true) {
-    // Check if there's a report entry for today (not just status)
-    final report = result['report'];
-    if (report != null) {
-      // If there's a report entry for today, it means already submitted
-      return true;
-    }
-    
-    // Also check status as fallback
-    final status = result['status']?.toString().toLowerCase();
-    return status == 'submitted';
-  }
-  return false;
-}
-
-  InputDecoration _fieldDecoration(String label, IconData icon) {
-    return InputDecoration(
-      labelText: label,
-      prefixIcon: Icon(icon),
-      hintStyle: TextStyle(color: Colors.grey.withOpacity(0.6)),
-    );
-  }
->>>>>>> bbf1bacd2ca04c7270ad053f6633e6e980c7e3fa
 }

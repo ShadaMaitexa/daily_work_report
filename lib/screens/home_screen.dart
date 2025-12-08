@@ -51,7 +51,6 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-<<<<<<< HEAD
   Future<void> _fetchTodayStatus() async {
     setState(() => _isStatusLoading = true);
 
@@ -75,30 +74,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
       _isStatusLoading = false;
     });
-=======
-  Future<void> _fetchTodayStatus(int workerId) async {
-  setState(() {
-    _isStatusLoading = true;
-  });
-
-  final result = await SheetsApi.checkTodayStatus(workerId.toString());
-
-  String statusText = 'Marked as Leave';
-
-  if (result['success'] == true) {
-    final status = (result['status'] ?? '').toString().toLowerCase();
-    if (status == 'submitted') {
-      statusText = 'Report Submitted';
-    }
->>>>>>> bbf1bacd2ca04c7270ad053f6633e6e980c7e3fa
   }
-
-  if (!mounted) return;
-  setState(() {
-    _statusMessage = statusText;
-    _isStatusLoading = false;
-  });
-}
 
   Future<void> _logout() async {
     await _authService.logout();
