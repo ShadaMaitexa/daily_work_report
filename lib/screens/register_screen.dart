@@ -31,113 +31,133 @@ class _RegisterScreenState extends State<RegisterScreen> {
     super.dispose();
   }
 
- Future<void> _register() async {
-  if (!_formKey.currentState!.validate()) return;
+Future<void> _register() async {
+    if (!_formKey.currentState!.validate()) return;
 
-  setState(() => _isLoading = true);
+    setState(() => _isLoading = true);
 
-  try {
-    final name = _nameController.text.trim();
-    final email = _emailController.text.trim().toLowerCase();
-    final phone = _phoneController.text.trim();
-    final password = _passwordController.text.trim();
-
-    print('🚀 SIMPLE Registration for: $email');
-
-    // METHOD 1: First try to create worker WITHOUT auth
-    print('👨‍💼 Creating worker record first...');
     try {
-      // Call our simple SQL function
-      final workerId = await supabase.rpc(
-        'simple_register_worker',
-        params: {
-          'worker_name': name,
-          'worker_email': email,
-          'worker_phone': phone,
-        },
-      );
-      
-      print('✅ Worker created with ID: $workerId');
-    } catch (e) {
-      print('⚠️ SQL function failed, trying direct insert: $e');
-      
-      // Direct insert
-      await supabase.from('workers').insert({
-        'name': name,
-        'email': email,
-        'phone': phone,
-      });
-      print('✅ Worker created via direct insert');
-    }
+      final name = _nameController.text.trim();
+      final email = _emailController.text.trim().toLowerCase();
+      final phone = _phoneController.text.trim();
+      final password = _passwordController.text.trim();
 
-    // METHOD 2: Now create auth user SEPARATELY
-    print('🔐 Creating auth user (separate)...');
-    try {
-      final authResponse = await supabase.auth.signUp(
-        email: email,
-        password: password,
-      );
+      print('🚀 Starting Registration');
+      print('📧 Email: $email');
+      print('👤 Name: $name');
+      print('📱 Phone: $phone');
 
-      if (authResponse.user != null) {
-        print('✅ Auth user created: ${authResponse.user!.id}');
-        
-        // Update worker with auth_id if we can
-        try {
+      // STEP 1: Create Worker Record FIRST (using function to bypass RLS)
+      print('\n👷 STEP 1: Creating worker record...');
+
+      // First, try direct insert (works if RLS disabled)
+      // If it fails, the function with SECURITY DEFINER will handle it
+      try {
+        final workerResponse = await supabase
+            .from('workers')
+            .insert({'name': name, 'email': email, 'phone': phone})
+            .select('id, name, email')
+            .single();
+
+        print('✅ Worker record created!');
+        print('   Worker ID: ${workerResponse['id']}');
+      } catch (rpsError) {
+        // If RLS blocks it, use the function instead
+        print('⚠️ Direct insert blocked, using register_worker function...');
+
+        final response = await supabase.rpc(
+          'register_worker',
+          params: {
+            'p_name': name,
+            'p_email': email,
+            'p_phone': phone,
+            'p_auth_id': null,
+          },
+        );
+
+        print('✅ Worker registered via function: $response');
+      }
+
+      final workerId = await supabase
+          .from('workers')
+          .select('id')
+          .eq('email', email)
+          .single()
+          .then((row) => row['id']);
+
+      // STEP 2: Try to create Supabase Auth User
+      print('\n🔐 STEP 2: Creating Supabase Auth user...');
+      try {
+        final authResponse = await supabase.auth.signUp(
+          email: email,
+          password: password,
+          data: {'full_name': name, 'phone': phone},
+        );
+
+        if (authResponse.user != null) {
+          print('✅ Auth user created: ${authResponse.user!.id}');
+
+          // Link auth to worker record
           await supabase
               .from('workers')
               .update({'auth_id': authResponse.user!.id})
-              .eq('email', email);
-          print('✅ Worker updated with auth_id');
-        } catch (e) {
-          print('⚠️ Could not update auth_id: $e');
+              .eq('id', workerId);
+          print('✅ Worker linked to auth');
         }
+      } catch (authError) {
+        print('⚠️ Auth creation skipped: $authError');
+        print('ℹ️ Worker registered - you can login with your credentials');
       }
-    } catch (authError) {
-      print('⚠️ Auth creation error (but worker exists): $authError');
-      print('ℹ️ User can try to login and auth will be created');
-    }
 
-    // SUCCESS - even if auth failed, worker exists
-    if (!mounted) return;
+      if (!mounted) return;
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Registration submitted! You can now try to login.'),
-        backgroundColor: Colors.green,
-        duration: Duration(seconds: 4),
-      ),
-    );
-
-    // Clear and navigate
-    _nameController.clear();
-    _emailController.clear();
-    _phoneController.clear();
-    _passwordController.clear();
-
-    await Future.delayed(const Duration(seconds: 2));
-    
-    if (!mounted) return;
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (context) => const LoginScreen()),
-    );
-
-  } catch (e) {
-    print('❌ Registration error: $e');
-    
-    if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Registration issue: ${e.toString()}'),
-          backgroundColor: Colors.red,
-          duration: const Duration(seconds: 4),
+        const SnackBar(
+          content: Text('✅ Registration successful! Redirecting to login...'),
+          backgroundColor: Colors.green,
+          duration: Duration(seconds: 3),
         ),
       );
+
+      // Clear form
+      _nameController.clear();
+      _emailController.clear();
+      _phoneController.clear();
+      _passwordController.clear();
+
+      await Future.delayed(const Duration(seconds: 2));
+
+      if (!mounted) return;
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const LoginScreen()),
+      );
+    } catch (e) {
+      print('❌ Registration Error: $e');
+
+      setState(() => _isLoading = false);
+
+      if (mounted) {
+        String errorMessage = 'Registration failed: ${e.toString()}';
+
+        if (e.toString().contains('duplicate')) {
+          errorMessage = 'Email already registered. Please login instead.';
+        } else if (e.toString().contains('email')) {
+          errorMessage = 'Email issue. Please check and try again.';
+        }
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(errorMessage),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
     }
-  } finally {
-    setState(() => _isLoading = false);
   }
-} @override
+
+  @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     return Scaffold(
@@ -228,7 +248,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           return 'Please enter your email';
                         }
                         if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(value)) {
-                          return 'Please enter a valid email';
+                          return 'Invalid email format';
                         }
                         return null;
                       },

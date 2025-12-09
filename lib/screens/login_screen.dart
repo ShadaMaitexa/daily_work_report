@@ -36,164 +36,102 @@ class _LoginScreenState extends State<LoginScreen> {
     _passwordController.dispose();
     super.dispose();
   }
-Future<void> _login() async {
-  if (!_formKey.currentState!.validate()) return;
 
-  setState(() => _isLoading = true);
+  Future<void> _login() async {
+    if (!_formKey.currentState!.validate()) return;
 
-  try {
-    final email = _emailController.text.trim().toLowerCase();
-    final password = _passwordController.text.trim();
+    setState(() => _isLoading = true);
 
-    print('🔐 SIMPLE Login for: $email');
-
-    // ADMIN LOGIN
-    if (email == _adminEmail && password == _adminPassword) {
-      print('👑 Admin login');
-      await _authService.saveAdminStatus(true);
-      await _authService.saveWorkerId('admin');
-      await _authService.saveWorkerName('Admin');
-      
-      if (!mounted) return;
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const AdminDashboard()),
-      );
-      return;
-    }
-
-    // STEP 1: Try normal login
     try {
-      final response = await supabase.auth.signInWithPassword(
+      final email = _emailController.text.trim().toLowerCase();
+      final password = _passwordController.text.trim();
+
+      print('🔐 Login attempt for: $email');
+
+      // CHECK FOR ADMIN
+      if (email == _adminEmail && password == _adminPassword) {
+        print('👑 Admin login detected');
+        await _authService.saveAdminStatus(true);
+        await _authService.saveWorkerId('admin');
+        await _authService.saveWorkerName('Admin');
+
+        if (!mounted) return;
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const AdminDashboard()),
+        );
+        setState(() => _isLoading = false);
+        return;
+      }
+
+      // STEP 1: Authenticate with Supabase
+      print('🔑 STEP 1: Supabase auth login...');
+      final authResponse = await supabase.auth.signInWithPassword(
         email: email,
         password: password,
       );
 
-      if (response.user != null) {
-        print('✅ Auth successful: ${response.user!.id}');
-        await _handleWorkerLookup(response.user!, email);
-        return;
+      if (authResponse.user == null) {
+        throw Exception('Authentication failed');
       }
-    } catch (authError) {
-      print('⚠️ Auth login failed: $authError');
-    }
 
-    // STEP 2: If auth fails, check if worker exists anyway
-    print('🔍 Checking if worker exists in database...');
-    final workerData = await supabase
-        .from('workers')
-        .select('id, name, email, auth_id')
-        .eq('email', email)
-        .maybeSingle();
+      print('✅ Auth successful: ${authResponse.user!.id}');
+      final userId = authResponse.user!.id;
 
-    if (workerData != null) {
-      print('✅ Worker found: ${workerData['id']}');
-      
-      // Try to create auth account for this worker
-      print('🔄 Attempting to create auth account...');
-      try {
-        final authResponse = await supabase.auth.signUp(
-          email: email,
-          password: password,
-        );
-        
-        if (authResponse.user != null) {
-          // Update worker with auth_id
-          await supabase
-              .from('workers')
-              .update({'auth_id': authResponse.user!.id})
-              .eq('id', workerData['id']);
-          
-          print('✅ Auth created and linked to worker');
-        }
-      } catch (e) {
-        print('⚠️ Could not create auth: $e');
-      }
-      
-      // Login with worker data even if auth creation failed
-      await _completeLogin(workerData, workerData['auth_id']?.toString() ?? '');
-      return;
-    }
-
-    // STEP 3: No worker found - suggest registration
-    throw Exception('No account found. Please register first.');
-
-  } catch (e) {
-    print('❌ Login error: $e');
-    setState(() => _isLoading = false);
-
-    if (!mounted) return;
-    
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          e.toString().contains('No account found') 
-            ? 'Account not found. Please register first.'
-            : 'Login failed. Please check credentials.'
-        ),
-        backgroundColor: Colors.red,
-      ),
-    );
-  }
-}
-
-Future<void> _handleWorkerLookup(User user, String email) async {
-  // Try to find worker by auth_id
-  var workerData = await supabase
-      .from('workers')
-      .select('id, name, email')
-      .eq('auth_id', user.id)
-      .maybeSingle();
-
-  if (workerData == null) {
-    // Try by email
-    workerData = await supabase
-        .from('workers')
-        .select('id, name, email')
-        .eq('email', email)
-        .maybeSingle();
-    
-    if (workerData == null) {
-      // Create worker on the fly
-      print('📝 Creating worker profile on login...');
-      final response = await supabase.from('workers').insert({
-        'auth_id': user.id,
-        'name': 'Worker',
-        'email': email,
-        'phone': '',
-      }).select('id, name').single();
-      
-      workerData = response;
-    } else {
-      // Update existing worker with auth_id
-      await supabase
+      // STEP 2: Get worker record
+      print('👷 STEP 2: Getting worker record...');
+      final workerData = await supabase
           .from('workers')
-          .update({'auth_id': user.id})
-          .eq('id', workerData['id']);
+          .select('id, name, email, phone')
+          .eq('auth_id', userId)
+          .maybeSingle();
+
+      if (workerData == null) {
+        throw Exception('Worker record not found. Please register first.');
+      }
+
+      print('✅ Worker found: ${workerData['id']}');
+
+      // STEP 3: Save session and navigate
+      print('💾 STEP 3: Saving session...');
+      await _authService.saveAdminStatus(false);
+      await _authService.saveWorkerId(workerData['id'].toString());
+      await _authService.saveWorkerName(
+        workerData['name']?.toString() ?? 'Worker',
+      );
+
+      print('🎉 Login successful!');
+
+      if (!mounted) return;
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const HomeScreen()),
+      );
+    } catch (e) {
+      print('❌ Login error: $e');
+      setState(() => _isLoading = false);
+
+      if (!mounted) return;
+
+      String errorMessage = 'Login failed';
+      if (e.toString().contains('Invalid login credentials')) {
+        errorMessage = 'Invalid email or password';
+      } else if (e.toString().contains('Worker record not found')) {
+        errorMessage = 'No account found. Please register first.';
+      } else if (e.toString().contains('User not found')) {
+        errorMessage = 'Account not found. Please register first.';
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(errorMessage),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 3),
+        ),
+      );
     }
   }
 
-  await _completeLogin(workerData, user.id);
-}
-
-Future<void> _completeLogin(Map<String, dynamic> workerData, String authId) async {
-  final workerId = workerData['id'].toString();
-  final workerName = workerData['name']?.toString() ?? 'Worker';
-
-  print('🎉 Login successful! ID: $workerId, Name: $workerName');
-
-  await _authService.saveAdminStatus(false);
-  await _authService.saveWorkerId(workerId);
-  await _authService.saveWorkerName(workerName);
-
-  setState(() => _isLoading = false);
-
-  if (!mounted) return;
-  Navigator.pushReplacement(
-    context,
-    MaterialPageRoute(builder: (_) => const HomeScreen()),
-  );
-}
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
@@ -268,7 +206,7 @@ Future<void> _completeLogin(Map<String, dynamic> workerData, String authId) asyn
                           return 'Please enter your email';
                         }
                         if (!value.contains('@')) {
-                          return 'Please enter a valid email';
+                          return 'Invalid email format';
                         }
                         return null;
                       },
